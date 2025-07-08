@@ -1,6 +1,7 @@
 import os
 import random
-from handfont.config import SPECIAL_RENDER_OVERRIDES
+# 使用相對匯入避免在未安裝套件時產生錯誤
+from .config import SPECIAL_RENDER_OVERRIDES
 
 
 def get_image_filename(ch):

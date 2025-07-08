@@ -7,8 +7,10 @@
 """
 
 import os
-from handfont import generate_text_image, sanitize_filename_char
-from handfont.config import OUTPUT_DIR
+
+# 以相對路徑匯入模組，方便直接以 `python -m 包名.demo` 執行
+from . import generate_text_image, sanitize_filename_char
+from .config import OUTPUT_DIR
 
 def run_demo():
     sample_texts = [
