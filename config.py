@@ -14,6 +14,10 @@ if getattr(sys, 'frozen', False):
 else:
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
+# === 📂 輸出資料夾 ===
+# demo.py 會將產生的圖片輸出到此資料夾
+OUTPUT_DIR = os.path.join(BASE_DIR, "demo_output")
+
 # ==============================
 # 🔤 字體與輸出大小設定
 # ==============================
