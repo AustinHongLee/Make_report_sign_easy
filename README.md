@@ -24,7 +24,7 @@ img = generate_text_image("李鴻宗")
 img.save("example.png")
 
 🔣 自訂字型路由（字 → 專屬字體）
-所有特別對應關係都寫在 font_routes.json：
+所有特別對應關係都寫在 font_routes_template.json：
 
 {
   "李": "fonts/JasonHandwriting2.ttf",
@@ -35,7 +35,7 @@ img.save("example.png")
 🤝 歡迎貢獻（加入你認為最合適的字型）
 1.Fork 本專案
 
-2.編輯或新增 font_routes.json
+2.編輯或新增 font_routes_template.json
 
 3.若你有自製字型，也可以附上說明（請勿侵犯他人版權）
 
@@ -58,7 +58,7 @@ python tools/preview_fonts.py 李
 handfont/        ← 核心模組邏輯
 tools/           ← 工具腳本與實驗測試
 fonts/           ← 所使用字型（請勿放未授權字型）
-font_routes.json ← 字 → 字型路由表
+font_routes_template.json ← 字 → 字型路由表
 
 📬 聯絡 & 說明
 歡迎你一起加入討論，也可以開 issue 討論某個字型的適配度、提出風格問題、甚至幫忙優化渲染邏輯。
