@@ -1,25 +1,30 @@
 from PIL import Image
 import os
-from handfont.config import IMAGE_SIZE, SPECIAL_RENDER_OVERRIDES
-from handfont.extractor import extract_paths
-from handfont.transform import perturb, shear, flip_y
-from handfont.utils import get_spacing, sanitize_filename_char
-from handfont.config import FONT_PATH, IMAGE_SIZE
-from handfont.config import FONT_ROUTER
+
+# 使用相對路徑引用同一套件內的模組，避免在直接執行時找不到 handfont 套件
+from .config import (
+    IMAGE_SIZE,
+    SPECIAL_RENDER_OVERRIDES,
+    FONT_PATH,
+    FONT_ROUTER,
+)
+from .extractor import extract_paths
+from .transform import perturb, shear, flip_y
+from .utils import get_spacing, sanitize_filename_char
 
 # 1. 從我們重新命名的檔案中，匯入兩位專家畫師的繪圖能力
-from handfont.draw_cjk import render_cjk_char
-from handfont.draw_hollow import render_hollow_char
+from .draw_cjk import render_cjk_char
+from .draw_hollow import render_hollow_char
 
 # 2. 定義需要由「空心專家」處理的字元列表
 HOLLOW_CHARS = "O0ABDPAQRGabdeopqg869"
 
 def generate_text_image(text, font_path=None, size=None, ignore_router=False):
     if font_path is None:
-        from handfont.config import FONT_PATH as DEFAULT_FONT
+        from .config import FONT_PATH as DEFAULT_FONT
         font_path = DEFAULT_FONT
     if size is None:
-        from handfont.config import IMAGE_SIZE as DEFAULT_SIZE
+        from .config import IMAGE_SIZE as DEFAULT_SIZE
         size = DEFAULT_SIZE
     """
     給定文字與字體路徑，回傳 PIL.Image。

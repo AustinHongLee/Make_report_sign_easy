@@ -1,6 +1,7 @@
 from PIL import Image, ImageDraw, ImageFilter
 import random
-from handfont.config import (
+# 使用相對匯入，確保在未安裝為系統套件時仍可正常執行
+from .config import (
     COLOR_BASE, COLOR_VARIATION, ALPHA_RANGE,
     BLOB_SIZE_RANGE, PARTIAL_DOT_RADIUS, LINE_WIDTH,
     SPECIAL_RENDER_OVERRIDES
@@ -33,7 +34,7 @@ def draw_solid_fill_layer(paths, size, scale, ox, oy, min_x, min_y, current_char
 
 
 def draw_partial_fill_layer(paths, size, scale, ox, oy, min_x, min_y):
-    from handfont.config import PARTIAL_DOT_PROBABILITY
+    from .config import PARTIAL_DOT_PROBABILITY
     layer = Image.new("RGBA", (size, size), (0, 0, 0, 0))
     draw = ImageDraw.Draw(layer)
     for path in paths:
@@ -116,5 +117,5 @@ def render_cjk_char(paths, size=512, current_char=None):
         padded.paste(image, ((size - new_size) // 2, int(size * y_offset_ratio)))
         return padded
 
-    from handfont.config import BLUR_AMOUNT
+    from .config import BLUR_AMOUNT
     return base.filter(ImageFilter.GaussianBlur(BLUR_AMOUNT))

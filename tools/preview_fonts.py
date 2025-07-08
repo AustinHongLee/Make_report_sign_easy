@@ -1,9 +1,9 @@
 import os
 import sys
-from handfont.builder import generate_text_image
-from handfont.config import IMAGE_SIZE
+from ..builder import generate_text_image
+from ..config import IMAGE_SIZE
 from PIL import Image
-from handfont.utils import sanitize_filename_char
+from ..utils import sanitize_filename_char
 
 
 # 可支援：python preview_fonts.py 李宗鴻

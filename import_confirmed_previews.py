@@ -1,7 +1,9 @@
 import os
 import json
-from handfont.config import BASE_DIR
-from handfont.safe_char_map import REVERSE_SAFE_CHAR_MAP
+
+# 相對匯入以便直接以模組方式執行
+from .config import BASE_DIR
+from .safe_char_map import REVERSE_SAFE_CHAR_MAP
 
 ROUTER_PATH = os.path.join(BASE_DIR, "font_routes_template.json")
 CONFIRM_DIR = os.path.join(BASE_DIR, "confirm")

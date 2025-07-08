@@ -6,8 +6,9 @@
 - 多字串拼接圖像產出（可直接嵌入報表、GUI 或 PDF）
 """
 
-from handfont.builder import generate_text_image
-from handfont.utils import get_image_filename, sanitize_filename_char
+# 使用相對匯入以避免在尚未安裝為套件時出現 ModuleNotFoundError
+from .builder import generate_text_image
+from .utils import get_image_filename, sanitize_filename_char
 
 __all__ = [
     'generate_text_image',
