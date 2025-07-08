@@ -57,4 +57,8 @@ tools/           # 輔助腳本
 2. 若有自製字型，請附上授權說明。
 3. 提交 Pull Request，我們會一同確認與測試。
 
+## 字型授權 Font Licenses
+專案使用的所有字型來源與授權說明已整理於 [FONT_LICENSES.md](FONT_LICENSES.md)。
+在商業用途之前請務必確認各字型的授權條件。
+
 Made with ❤️ by [AustinHongLee]
