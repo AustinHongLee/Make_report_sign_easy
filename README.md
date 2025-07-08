@@ -14,15 +14,23 @@ HandFont is a handwriting-style renderer for Chinese characters, Latin letters a
 ```bash
 pip install pillow fonttools
 # 下載本專案
-git clone https://github.com/AustinHongLee/handfont-playground.git
-cd handfont-playground
+git clone https://github.com/AustinHongLee/Make_report_sign_easy.git
+cd Make_report_sign_easy
 ```
 
 ## 快速使用 Quick Start
 ```python
-from handfont.builder import generate_text_image
+from Make_report_sign_easy.builder import generate_text_image
 img = generate_text_image("手寫效果")
 img.save("example.png")
+```
+
+### 執行範例 Running the demo
+在專案根目錄的上層，使用 `python -m` 方式執行模組：
+
+```bash
+python -m Make_report_sign_easy.demo
+python -m Make_report_sign_easy.tools.preview_fonts 李
 ```
 
 ## 字型路由 Font Routing
@@ -37,7 +45,7 @@ img.save("example.png")
 
 ## 專案結構 Project Structure
 ```
-handfont/        # 核心模組
+Make_report_sign_easy/        # 核心模組
 fonts/           # 字型檔案
 previews/        # 產生的字型預覽
 confirm/         # 社群確認的最佳字型
