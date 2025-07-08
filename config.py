@@ -1,9 +1,9 @@
-# config.py 🔧
-# ==============================
-# 📦 本模組所有參數設定集中於此
-# 適用對象：手寫字體模擬工具 handfont
-# 支援：Python 腳本 / EXE 打包環境
-# ==============================
+"""HandFont 主要設定檔
+==========================
+此檔案集中管理所有可調參數，並附上安全範圍建議與簡易說明。
+使用者可依需求微調，或透過 ``print_config_help()`` 迅速檢視每個
+參數的用途與建議值。
+"""
 
 import os
 import sys
@@ -162,3 +162,29 @@ SPECIAL_RENDER_OVERRIDES = {
 # 對數字補充設定（數字通常佔據較大字框）
 for d in '0123456789':
     SPECIAL_RENDER_OVERRIDES[d] = {'scale': 0.8}
+
+
+# ==============================
+# 📖 參數說明與安全範圍
+# ==============================
+PARAM_INFO = {
+    'IMAGE_SIZE': ('單字輸出尺寸(像素)', '256 ~ 1024'),
+    'UPSCALE_FACTOR': ('抗鋸齒放大倍數', '1 ~ 4'),
+    'PERTURB': ('筆劃顫抖幅度', '0 ~ 15'),
+    'SHEAR_ANGLE': ('字體傾斜角度', '-20° ~ +20°'),
+    'BLUR_RADIUS': ('墨跡模糊半徑', '1 ~ 5'),
+    'COLOR_VARIATION': ('墨色亮度波動', '10 ~ 60'),
+    'ALPHA_RANGE': ('筆畫透明度範圍', '120 ~ 255'),
+    'BLOB_SIZE_RANGE': ('墨球大小範圍', '3 ~ 15'),
+    'PARTIAL_DOT_RADIUS': ('斷墨點半徑', '1.5 ~ 6'),
+    'LINE_WIDTH': ('線條寬度', '1 ~ 3'),
+    'BLUR_AMOUNT': ('最終高斯模糊量', '1.5 ~ 3'),
+    'PARTIAL_DOT_PROBABILITY': ('斷墨點出現機率', '0.0 ~ 1.0'),
+}
+
+
+def print_config_help():
+    """列出主要參數及其目前設定值與建議範圍。"""
+    for key, (desc, rng) in PARAM_INFO.items():
+        val = globals().get(key)
+        print(f"{key:20} = {val:<10}  # {desc} (建議 {rng})")
