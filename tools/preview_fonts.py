@@ -14,6 +14,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 FONT_DIR = os.path.join(BASE_DIR, "..", "fonts")
 OUTPUT_BASE = os.path.join(BASE_DIR, "..", "previews", safe_text)
 os.makedirs(OUTPUT_BASE, exist_ok=True)
+print(f"📂 預覽將輸出至: {OUTPUT_BASE}")
 
 for font_file in os.listdir(FONT_DIR):
     if not font_file.lower().endswith(".ttf"):
@@ -28,7 +29,7 @@ for font_file in os.listdir(FONT_DIR):
                 safe_ch = sanitize_filename_char(ch)
                 output_path = os.path.join(OUTPUT_BASE, f"{safe_ch}_{font_file}.png")
                 img.save(output_path)
-                print(f"✅ 渲染成功：{ch} - {font_file}")
+                print(f"✅ 渲染成功：{ch} - {font_file} -> {output_path}")
             else:
                 print(f"⚠️ 渲染失敗：{ch} - {font_file}")
         except Exception as e:

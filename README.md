@@ -31,12 +31,14 @@ img.save("example.png")
 使整體效果更接近自然手寫。
 
 ### 執行範例 Running the demo
-在專案根目錄的上層，使用 `python -m` 方式執行模組：
+請在 *專案資料夾的上層* （或於安裝後）使用 `python -m` 執行，
+若在模組資料夾內執行將出現 `ModuleNotFoundError`：
 
 ```bash
-python -m Make_report_sign_easy.demo
+python -m Make_report_sign_easy.demo "自訂文字" -o output_dir
 python -m Make_report_sign_easy.tools.preview_fonts 李
 ```
+`preview_fonts.py` 執行完會告知預覽圖片存放的路徑（預設在 `previews/`）。
 
 ## 字型路由 Font Routing
 在 `font_routes_template.json` 中指定字 → 字體的映射，例如：
