@@ -25,6 +25,11 @@ img = generate_text_image("手寫效果")
 img.save("example.png")
 ```
 
+### 進階設定 Advanced Config
+在 `config.py` 中可調整筆劃抖動與傾斜角度，
+並透過 `PERTURB_JITTER`、`SHEAR_JITTER` 讓每個字產生些許隨機變化，
+使整體效果更接近自然手寫。
+
 ### 執行範例 Running the demo
 在專案根目錄的上層，使用 `python -m` 方式執行模組：
 

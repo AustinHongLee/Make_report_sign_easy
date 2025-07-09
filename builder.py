@@ -1,5 +1,6 @@
 from PIL import Image
 import os
+import random
 
 # 使用相對路徑引用同一套件內的模組，避免在直接執行時找不到 handfont 套件
 from .config import (
@@ -7,6 +8,10 @@ from .config import (
     SPECIAL_RENDER_OVERRIDES,
     FONT_PATH,
     FONT_ROUTER,
+    PERTURB,
+    PERTURB_JITTER,
+    SHEAR_ANGLE,
+    SHEAR_JITTER,
 )
 from .extractor import extract_paths
 from .transform import perturb, shear, flip_y
@@ -46,8 +51,10 @@ def generate_text_image(text, font_path=None, size=None, ignore_router=False):
             # 若有特殊指定用字型，就改用該字型
             font_used = font_path if ignore_router else FONT_ROUTER.get(ch, font_path)
             paths = extract_paths(font_used, ch)
-            # ‼️ 注意：這裡的抖動和傾斜參數是固定的，您可以之後改成從 config 讀取
-            paths = flip_y(shear(perturb(paths, 12), 20))
+            # 依據設定值加入少量隨機變形，模擬手寫差異
+            perturb_amount = PERTURB + random.uniform(-PERTURB_JITTER, PERTURB_JITTER)
+            shear_amount = SHEAR_ANGLE + random.uniform(-SHEAR_JITTER, SHEAR_JITTER)
+            paths = flip_y(shear(perturb(paths, perturb_amount), shear_amount))
 
             # ⭐ --- 智慧分派邏輯 --- ⭐
             char_img = None
