@@ -122,6 +122,10 @@ PARTIAL_DOT_RADIUS = (1.5, 4)
 # - 建議：1 ~ 3
 LINE_WIDTH = 1
 
+# 文字間距額外調整量（正值增加間距，負值減少）
+# - 建議：-100 ~ 100
+CHAR_SPACING_OFFSET = 0
+
 # === 🗃️ 外部參數覆寫 ===
 CUSTOM_CONFIG_PATH = os.path.join(BASE_DIR, "custom_config.json")
 if os.path.exists(CUSTOM_CONFIG_PATH):
@@ -196,6 +200,7 @@ PARAM_INFO = {
     'BLOB_SIZE_RANGE': ('墨球大小範圍', '3 ~ 15'),
     'PARTIAL_DOT_RADIUS': ('斷墨點半徑', '1.5 ~ 6'),
     'LINE_WIDTH': ('線條寬度', '1 ~ 3'),
+    'CHAR_SPACING_OFFSET': ('字距調整量', '-100 ~ 100'),
     'BLUR_AMOUNT': ('最終高斯模糊量', '1.5 ~ 3'),
     'PARTIAL_DOT_PROBABILITY': ('斷墨點出現機率', '0.0 ~ 1.0'),
 }

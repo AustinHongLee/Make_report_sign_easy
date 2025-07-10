@@ -1,7 +1,7 @@
 import os
 import random
 # 使用相對匯入避免在未安裝套件時產生錯誤
-from .config import SPECIAL_RENDER_OVERRIDES
+from .config import SPECIAL_RENDER_OVERRIDES, CHAR_SPACING_OFFSET
 
 
 def get_image_filename(ch):
@@ -27,14 +27,16 @@ def get_spacing(ch):
     ✅ 根據不同字元類型取得預設間距
     """
     if ch == ' ':
-        return 500
-    if ch in SPECIAL_RENDER_OVERRIDES: # 特殊符號
-        return SPECIAL_RENDER_OVERRIDES[ch].get("spacing", -5)
-    if '\u4e00' <= ch <= '\u9fff':  # 中文
-        return 5
-    if ch.isdigit() or ch.isalpha(): # 英文或數字
-        return -60
-    return 10
+        base = 500
+    elif ch in SPECIAL_RENDER_OVERRIDES:
+        base = SPECIAL_RENDER_OVERRIDES[ch].get("spacing", -5)
+    elif '\u4e00' <= ch <= '\u9fff':
+        base = 5
+    elif ch.isdigit() or ch.isalpha():
+        base = -60
+    else:
+        base = 10
+    return base + CHAR_SPACING_OFFSET
 
 
 def with_alpha(rgb, alpha):
