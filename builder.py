@@ -16,6 +16,9 @@ from .draw_hollow import render_hollow_char
 HOLLOW_CHARS = "O0ABDPAQRGabdeopqg869"
 
 def generate_text_image(text, font_path=None, size=None, ignore_router=False):
+    # 保持數字相關設定最新
+    if hasattr(config, "sync_digit_overrides"):
+        config.sync_digit_overrides()
     if font_path is None:
         font_path = config.FONT_PATH
     if size is None:
