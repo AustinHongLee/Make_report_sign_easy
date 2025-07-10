@@ -1,15 +1,7 @@
 from PIL import Image, ImageDraw, ImageFilter
 import random
 # 使用相對匯入，確保在未安裝為系統套件時仍可正常執行
-from .config import (
-    COLOR_BASE, COLOR_VARIATION, ALPHA_RANGE,
-    BLOB_SIZE_RANGE, PARTIAL_DOT_RADIUS, LINE_WIDTH,
-    SPECIAL_RENDER_OVERRIDES,
-    DIGIT_SCALE, DIGIT_OFFSET_Y,
-    ALPHA_SCALE, ALPHA_OFFSET_Y,
-    CJK_SCALE, CJK_OFFSET_Y,
-    SPECIAL_SCALE, SPECIAL_OFFSET_Y,
-)
+from . import config
 
 # 👉 工具
 def with_alpha(rgb, alpha):
@@ -23,7 +15,7 @@ def varied_color(base, variation=0, alpha=255):
 
 # === 單層繪製邏輯 ===
 def draw_solid_fill_layer(paths, size, scale, ox, oy, min_x, min_y, current_char=None):
-    is_cjk = current_char and ('\u4e00' <= current_char <= '\u9fff' or current_char in SPECIAL_RENDER_OVERRIDES)
+    is_cjk = current_char and ('\u4e00' <= current_char <= '\u9fff' or current_char in config.SPECIAL_RENDER_OVERRIDES)
     mask = Image.new("L", (size, size), 0)
     draw = ImageDraw.Draw(mask)
     for i, path in enumerate(paths):
@@ -31,24 +23,23 @@ def draw_solid_fill_layer(paths, size, scale, ox, oy, min_x, min_y, current_char
         if len(poly) >= 3:
             draw.polygon(poly, fill=255 if is_cjk or i % 2 == 0 else 0)
     final_layer = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    alpha = SPECIAL_RENDER_OVERRIDES.get(current_char, {}).get("alpha", 255)
-    color_layer = Image.new("RGBA", (size, size), varied_color(COLOR_BASE, COLOR_VARIATION, alpha))
+    alpha = config.SPECIAL_RENDER_OVERRIDES.get(current_char, {}).get("alpha", 255)
+    color_layer = Image.new("RGBA", (size, size), varied_color(config.COLOR_BASE, config.COLOR_VARIATION, alpha))
     final_layer.paste(color_layer, mask=mask)
     return final_layer
 
 
 def draw_partial_fill_layer(paths, size, scale, ox, oy, min_x, min_y):
-    from .config import PARTIAL_DOT_PROBABILITY
     layer = Image.new("RGBA", (size, size), (0, 0, 0, 0))
     draw = ImageDraw.Draw(layer)
     for path in paths:
         for (x, y) in path[::max(1, len(path)//6)]:
-            if random.random() < PARTIAL_DOT_PROBABILITY:
+            if random.random() < config.PARTIAL_DOT_PROBABILITY:
                 px = (x - min_x) * scale + ox
                 py = (y - min_y) * scale + oy
-                r = random.uniform(*PARTIAL_DOT_RADIUS)
+                r = random.uniform(*config.PARTIAL_DOT_RADIUS)
                 draw.ellipse((px - r, py - r, px + r, py + r),
-                             fill=varied_color(COLOR_BASE, COLOR_VARIATION, random.randint(*ALPHA_RANGE)))
+                             fill=varied_color(config.COLOR_BASE, config.COLOR_VARIATION, random.randint(*config.ALPHA_RANGE)))
     return layer
 
 
@@ -62,7 +53,7 @@ def draw_stroke_alpha_layer(paths, size, scale, ox, oy, min_x, min_y):
             p1 = ((x1 - min_x) * scale + ox, (y1 - min_y) * scale + oy)
             p2 = ((x2 - min_x) * scale + ox, (y2 - min_y) * scale + oy)
             alpha = int(255 * (1 - abs(i / len(path) - 0.5) * 2))
-            draw.line(p1 + p2, fill=with_alpha(COLOR_BASE, alpha), width=LINE_WIDTH)
+            draw.line(p1 + p2, fill=with_alpha(config.COLOR_BASE, alpha), width=config.LINE_WIDTH)
     return layer
 
 
@@ -74,9 +65,9 @@ def draw_stroke_blob_layer(paths, size, scale, ox, oy, min_x, min_y):
             x, y = path[i]
             px = (x - min_x) * scale + ox
             py = (y - min_y) * scale + oy
-            r = random.randint(*BLOB_SIZE_RANGE)
+            r = random.randint(*config.BLOB_SIZE_RANGE)
             draw.ellipse((px - r, py - r, px + r, py + r),
-                         fill=varied_color(COLOR_BASE, COLOR_VARIATION, random.randint(*ALPHA_RANGE)))
+                         fill=varied_color(config.COLOR_BASE, config.COLOR_VARIATION, random.randint(*config.ALPHA_RANGE)))
     return layer
 
 
@@ -87,29 +78,29 @@ def render_cjk_char(paths, size=512, current_char=None):
     min_x, max_x = min(all_x), max(all_x)
     min_y, max_y = min(all_y), max(all_y)
 
-    override = SPECIAL_RENDER_OVERRIDES.get(current_char, {})
+    override = config.SPECIAL_RENDER_OVERRIDES.get(current_char, {})
     scale_ratio = override.get("scale")
     offset_y_ratio = override.get("offset_y")
 
     if scale_ratio is None:
         if current_char is not None and '\u4e00' <= current_char <= '\u9fff':
-            scale_ratio = CJK_SCALE
+            scale_ratio = config.CJK_SCALE
         elif current_char is not None and current_char.isdigit():
-            scale_ratio = DIGIT_SCALE
+            scale_ratio = config.DIGIT_SCALE
         elif current_char is not None and current_char.isalpha():
-            scale_ratio = ALPHA_SCALE
+            scale_ratio = config.ALPHA_SCALE
         else:
-            scale_ratio = SPECIAL_SCALE
+            scale_ratio = config.SPECIAL_SCALE
 
     if offset_y_ratio is None:
         if current_char is not None and '\u4e00' <= current_char <= '\u9fff':
-            offset_y_ratio = CJK_OFFSET_Y
+            offset_y_ratio = config.CJK_OFFSET_Y
         elif current_char is not None and current_char.isdigit():
-            offset_y_ratio = DIGIT_OFFSET_Y
+            offset_y_ratio = config.DIGIT_OFFSET_Y
         elif current_char is not None and current_char.isalpha():
-            offset_y_ratio = ALPHA_OFFSET_Y
+            offset_y_ratio = config.ALPHA_OFFSET_Y
         else:
-            offset_y_ratio = SPECIAL_OFFSET_Y
+            offset_y_ratio = config.SPECIAL_OFFSET_Y
 
     # 檢查分母是否為零
     if max_x == min_x or max_y == min_y:
@@ -142,5 +133,4 @@ def render_cjk_char(paths, size=512, current_char=None):
         padded.paste(image, ((size - new_size) // 2, int(size * y_offset_ratio)))
         return padded
 
-    from .config import BLUR_AMOUNT
-    return base.filter(ImageFilter.GaussianBlur(BLUR_AMOUNT))
+    return base.filter(ImageFilter.GaussianBlur(config.BLUR_AMOUNT))

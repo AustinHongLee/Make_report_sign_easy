@@ -3,16 +3,7 @@ import os
 import random
 
 # 使用相對路徑引用同一套件內的模組，避免在直接執行時找不到 handfont 套件
-from .config import (
-    IMAGE_SIZE,
-    SPECIAL_RENDER_OVERRIDES,
-    FONT_PATH,
-    FONT_ROUTER,
-    PERTURB,
-    PERTURB_JITTER,
-    SHEAR_ANGLE,
-    SHEAR_JITTER,
-)
+from . import config
 from .extractor import extract_paths
 from .transform import perturb, shear, flip_y
 from .utils import get_spacing, sanitize_filename_char
@@ -26,11 +17,9 @@ HOLLOW_CHARS = "O0ABDPAQRGabdeopqg869"
 
 def generate_text_image(text, font_path=None, size=None, ignore_router=False):
     if font_path is None:
-        from .config import FONT_PATH as DEFAULT_FONT
-        font_path = DEFAULT_FONT
+        font_path = config.FONT_PATH
     if size is None:
-        from .config import IMAGE_SIZE as DEFAULT_SIZE
-        size = DEFAULT_SIZE
+        size = config.IMAGE_SIZE
     """
     給定文字與字體路徑，回傳 PIL.Image。
     此版本包含智慧分派邏輯。
@@ -49,11 +38,11 @@ def generate_text_image(text, font_path=None, size=None, ignore_router=False):
 
             # 通用前置作業：提取路徑和變形
             # 若有特殊指定用字型，就改用該字型
-            font_used = font_path if ignore_router else FONT_ROUTER.get(ch, font_path)
+            font_used = font_path if ignore_router else config.FONT_ROUTER.get(ch, font_path)
             paths = extract_paths(font_used, ch)
             # 依據設定值加入少量隨機變形，模擬手寫差異
-            perturb_amount = PERTURB + random.uniform(-PERTURB_JITTER, PERTURB_JITTER)
-            shear_amount = SHEAR_ANGLE + random.uniform(-SHEAR_JITTER, SHEAR_JITTER)
+            perturb_amount = config.PERTURB + random.uniform(-config.PERTURB_JITTER, config.PERTURB_JITTER)
+            shear_amount = config.SHEAR_ANGLE + random.uniform(-config.SHEAR_JITTER, config.SHEAR_JITTER)
             paths = flip_y(shear(perturb(paths, perturb_amount), shear_amount))
 
             # ⭐ --- 智慧分派邏輯 --- ⭐
@@ -91,8 +80,8 @@ def generate_text_image(text, font_path=None, size=None, ignore_router=False):
 
     return canvas
 
-def save_text_image(text, font_path=FONT_PATH, output_path=None, size=IMAGE_SIZE):
-    img = generate_text_image(text, font_path, size)
+def save_text_image(text, font_path=None, output_path=None, size=None):
+    img = generate_text_image(text, font_path or config.FONT_PATH, size or config.IMAGE_SIZE)
     if img:
         if output_path:
             img.save(output_path)

@@ -32,7 +32,9 @@ def get_spacing(ch):
         base = config.SPECIAL_RENDER_OVERRIDES[ch].get("spacing", -5)
     elif '\u4e00' <= ch <= '\u9fff':
         base = 5
-    elif ch.isdigit() or ch.isalpha():
+    elif ch.isdigit():
+        base = -80
+    elif ch.isalpha():
         base = -60
     else:
         base = 10
