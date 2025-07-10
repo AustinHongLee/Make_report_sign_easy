@@ -1,1 +1,2 @@
-此資料夾預留放置字體，如 ChenYuluoyan-2.0-Thin.ttf
+此資料夾放置可供選擇的 `.ttf` 字型檔。
+`config_gui` 會自動列出這裡的檔案供使用者挑選。

@@ -17,6 +17,12 @@ class ConfigGUI(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("HandFont 參數設定")
+        self.fonts_dir = os.path.join(os.path.dirname(__file__), "fonts")
+        self.fonts_list = [f for f in os.listdir(self.fonts_dir) if f.lower().endswith('.ttf')]
+        default_font = os.path.basename(config.FONT_PATH)
+        if default_font not in self.fonts_list and self.fonts_list:
+            default_font = self.fonts_list[0]
+        self.font_var = tk.StringVar(value=default_font)
         self.params = {
             "PERTURB": {"var": tk.IntVar(value=config.PERTURB), "min": 0, "max": 20, "type": int},
             "PERTURB_JITTER": {"var": tk.IntVar(value=config.PERTURB_JITTER), "min": 0, "max": 5, "type": int},
@@ -38,6 +44,11 @@ class ConfigGUI(tk.Tk):
 
     def _build_ui(self):
         row = 0
+        ttk.Label(self, text="字體 Font").grid(row=row, column=0, sticky="w", padx=5, pady=2)
+        font_cb = ttk.Combobox(self, textvariable=self.font_var, values=self.fonts_list, state="readonly")
+        font_cb.grid(row=row, column=1, columnspan=2, sticky="we", padx=5)
+        font_cb.bind("<<ComboboxSelected>>", lambda e: self.update_preview())
+        row += 1
         for name, info in self.params.items():
             desc = config.PARAM_INFO.get(name, (name,))[0]
             ttk.Label(self, text=f"{desc} ({name})").grid(row=row, column=0, sticky="w", padx=5, pady=2)
@@ -69,9 +80,11 @@ class ConfigGUI(tk.Tk):
             value = cast(var_value)
             setattr(config, name, value)
             setattr(builder, name, value)
+        font_path = os.path.join(self.fonts_dir, self.font_var.get())
+        config.FONT_PATH = font_path
         # 更新數字專用設定，避免舊值殘留於 SPECIAL_RENDER_OVERRIDES
         config.sync_digit_overrides()
-        img = builder.generate_text_image("預覽123ABC!?中文")
+        img = builder.generate_text_image("預覽123ABC!?中文", font_path)
         if img:
             target_height = 200
             scale = target_height / img.height
@@ -85,6 +98,7 @@ class ConfigGUI(tk.Tk):
         for name, info in self.params.items():
             cast = info.get("type", float)
             data[name] = cast(info["var"].get())
+        data["FONT_PATH"] = os.path.join(self.fonts_dir, self.font_var.get())
         with open(CUSTOM_CONFIG_PATH, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
         print(f"✅ 已儲存 {CUSTOM_CONFIG_PATH}")
