@@ -196,6 +196,16 @@ for d in '0123456789':
     SPECIAL_RENDER_OVERRIDES[d].setdefault('scale', DIGIT_SCALE)
     SPECIAL_RENDER_OVERRIDES[d].setdefault('offset_y', DIGIT_OFFSET_Y)
 
+# 新增：確保後續修改縮放或位移時可即時套用
+def sync_digit_overrides():
+    """Synchronize digit settings into SPECIAL_RENDER_OVERRIDES."""
+    for d in '0123456789':
+        SPECIAL_RENDER_OVERRIDES.setdefault(d, {})
+        SPECIAL_RENDER_OVERRIDES[d]['scale'] = DIGIT_SCALE
+        SPECIAL_RENDER_OVERRIDES[d]['offset_y'] = DIGIT_OFFSET_Y
+
+sync_digit_overrides()
+
 
 # ==============================
 # 📖 參數說明與安全範圍

@@ -69,6 +69,8 @@ class ConfigGUI(tk.Tk):
             value = cast(var_value)
             setattr(config, name, value)
             setattr(builder, name, value)
+        # 更新數字專用設定，避免舊值殘留於 SPECIAL_RENDER_OVERRIDES
+        config.sync_digit_overrides()
         img = builder.generate_text_image("預覽123ABC!?中文")
         if img:
             target_height = 200
