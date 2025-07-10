@@ -28,11 +28,14 @@ img.save("example.png")
 ### 進階設定 Advanced Config
 在 `config.py` 中可調整筆劃抖動與傾斜角度，
 並透過 `PERTURB_JITTER`、`SHEAR_JITTER` 讓每個字產生些許隨機變化，
+也可以變更 `FONT_PATH` 或使用下方的 GUI 選擇不同字型，
 使整體效果更接近自然手寫。
 
 ### 參數圖形介面 Config GUI
-執行 `python -m Make_report_sign_easy.config_gui` 即可開啟圖形介面調整參數，
-介面提供中文說明並支援「字距調整」功能，可即時預覽多種符號與中文效果。
+執行 `python -m Make_report_sign_easy.config_gui` 可開啟圖形介面調整參數，
+介面提供中文說明並支援「字距調整」與**字體檔選擇**功能，
+在左側選擇想要的 `.ttf` 字型後即可即時預覽，按下「儲存設定」會將選擇寫入
+`custom_config.json`，下次載入模組時便會套用。
 
 ### 執行範例 Running the demo
 請在 *專案資料夾的上層* （或於安裝後）使用 `python -m` 執行，
