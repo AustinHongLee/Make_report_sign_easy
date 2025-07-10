@@ -4,7 +4,11 @@ import random
 from .config import (
     COLOR_BASE, COLOR_VARIATION, ALPHA_RANGE,
     BLOB_SIZE_RANGE, PARTIAL_DOT_RADIUS, LINE_WIDTH,
-    SPECIAL_RENDER_OVERRIDES
+    SPECIAL_RENDER_OVERRIDES,
+    DIGIT_SCALE, DIGIT_OFFSET_Y,
+    ALPHA_SCALE, ALPHA_OFFSET_Y,
+    CJK_SCALE, CJK_OFFSET_Y,
+    SPECIAL_SCALE, SPECIAL_OFFSET_Y,
 )
 
 # 👉 工具
@@ -83,8 +87,29 @@ def render_cjk_char(paths, size=512, current_char=None):
     min_x, max_x = min(all_x), max(all_x)
     min_y, max_y = min(all_y), max(all_y)
 
-    scale_ratio = SPECIAL_RENDER_OVERRIDES.get(current_char, {}).get("scale", 1.0)
-    offset_y_ratio = SPECIAL_RENDER_OVERRIDES.get(current_char, {}).get("offset_y", 0.0)
+    override = SPECIAL_RENDER_OVERRIDES.get(current_char, {})
+    scale_ratio = override.get("scale")
+    offset_y_ratio = override.get("offset_y")
+
+    if scale_ratio is None:
+        if current_char is not None and '\u4e00' <= current_char <= '\u9fff':
+            scale_ratio = CJK_SCALE
+        elif current_char is not None and current_char.isdigit():
+            scale_ratio = DIGIT_SCALE
+        elif current_char is not None and current_char.isalpha():
+            scale_ratio = ALPHA_SCALE
+        else:
+            scale_ratio = SPECIAL_SCALE
+
+    if offset_y_ratio is None:
+        if current_char is not None and '\u4e00' <= current_char <= '\u9fff':
+            offset_y_ratio = CJK_OFFSET_Y
+        elif current_char is not None and current_char.isdigit():
+            offset_y_ratio = DIGIT_OFFSET_Y
+        elif current_char is not None and current_char.isalpha():
+            offset_y_ratio = ALPHA_OFFSET_Y
+        else:
+            offset_y_ratio = SPECIAL_OFFSET_Y
 
     # 檢查分母是否為零
     if max_x == min_x or max_y == min_y:

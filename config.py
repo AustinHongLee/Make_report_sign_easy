@@ -126,6 +126,17 @@ LINE_WIDTH = 1
 # - 建議：-100 ~ 100
 CHAR_SPACING_OFFSET = 0
 
+# === 字型群組預設調整量 ===
+# 各類字元的縮放倍率與垂直位移，可在 GUI 或 custom_config.json 中覆寫
+DIGIT_SCALE = 0.8
+DIGIT_OFFSET_Y = 0.0
+ALPHA_SCALE = 1.0
+ALPHA_OFFSET_Y = 0.0
+CJK_SCALE = 1.0
+CJK_OFFSET_Y = 0.0
+SPECIAL_SCALE = 1.0
+SPECIAL_OFFSET_Y = 0.0
+
 # === 🗃️ 外部參數覆寫 ===
 CUSTOM_CONFIG_PATH = os.path.join(BASE_DIR, "custom_config.json")
 if os.path.exists(CUSTOM_CONFIG_PATH):
@@ -181,7 +192,9 @@ SPECIAL_RENDER_OVERRIDES = {
 
 # 對數字補充設定（數字通常佔據較大字框）
 for d in '0123456789':
-    SPECIAL_RENDER_OVERRIDES[d] = {'scale': 0.8}
+    SPECIAL_RENDER_OVERRIDES.setdefault(d, {})
+    SPECIAL_RENDER_OVERRIDES[d].setdefault('scale', DIGIT_SCALE)
+    SPECIAL_RENDER_OVERRIDES[d].setdefault('offset_y', DIGIT_OFFSET_Y)
 
 
 # ==============================
@@ -201,6 +214,14 @@ PARAM_INFO = {
     'PARTIAL_DOT_RADIUS': ('斷墨點半徑', '1.5 ~ 6'),
     'LINE_WIDTH': ('線條寬度', '1 ~ 3'),
     'CHAR_SPACING_OFFSET': ('字距調整量', '-100 ~ 100'),
+    'DIGIT_SCALE': ('數字縮放倍率', '0.5 ~ 1.5'),
+    'DIGIT_OFFSET_Y': ('數字垂直位移', '-0.5 ~ 0.5'),
+    'ALPHA_SCALE': ('英文縮放倍率', '0.5 ~ 1.5'),
+    'ALPHA_OFFSET_Y': ('英文垂直位移', '-0.5 ~ 0.5'),
+    'CJK_SCALE': ('中文縮放倍率', '0.5 ~ 1.5'),
+    'CJK_OFFSET_Y': ('中文垂直位移', '-0.5 ~ 0.5'),
+    'SPECIAL_SCALE': ('特殊符縮放', '0.5 ~ 1.5'),
+    'SPECIAL_OFFSET_Y': ('特殊符位移', '-0.5 ~ 0.5'),
     'BLUR_AMOUNT': ('最終高斯模糊量', '1.5 ~ 3'),
     'PARTIAL_DOT_PROBABILITY': ('斷墨點出現機率', '0.0 ~ 1.0'),
 }
