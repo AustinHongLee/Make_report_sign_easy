@@ -7,6 +7,7 @@
 
 import os
 import sys
+import json
 
 # === 📁 模組根目錄（可相容打包後的 __file__）===
 if getattr(sys, 'frozen', False):
@@ -29,7 +30,6 @@ FONT_PATH = os.path.join(BASE_DIR, 'fonts', 'ChenYuluoyan-2.0-Thin.ttf')
 ROUTER_PATH = os.path.join(BASE_DIR, 'font_routes_template.json')
 
 if os.path.exists(ROUTER_PATH):
-    import json
     with open(ROUTER_PATH, 'r', encoding='utf-8') as f:
         FONT_ROUTER = json.load(f)
 else:
@@ -121,6 +121,14 @@ PARTIAL_DOT_RADIUS = (1.5, 4)
 # 筆劃線寬（用於線條層）
 # - 建議：1 ~ 3
 LINE_WIDTH = 1
+
+# === 🗃️ 外部參數覆寫 ===
+CUSTOM_CONFIG_PATH = os.path.join(BASE_DIR, "custom_config.json")
+if os.path.exists(CUSTOM_CONFIG_PATH):
+    import json
+    with open(CUSTOM_CONFIG_PATH, "r", encoding="utf-8") as f:
+        user_conf = json.load(f)
+        globals().update(user_conf)
 
 # ============ 🪶 渲染控制參數 ============
 # 是否開啟每個層（可未來擴充用）
