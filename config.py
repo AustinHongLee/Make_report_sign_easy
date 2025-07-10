@@ -7,6 +7,7 @@
 
 import os
 import sys
+import json
 
 # === 📁 模組根目錄（可相容打包後的 __file__）===
 if getattr(sys, 'frozen', False):
@@ -29,7 +30,6 @@ FONT_PATH = os.path.join(BASE_DIR, 'fonts', 'ChenYuluoyan-2.0-Thin.ttf')
 ROUTER_PATH = os.path.join(BASE_DIR, 'font_routes_template.json')
 
 if os.path.exists(ROUTER_PATH):
-    import json
     with open(ROUTER_PATH, 'r', encoding='utf-8') as f:
         FONT_ROUTER = json.load(f)
 else:
@@ -122,6 +122,18 @@ PARTIAL_DOT_RADIUS = (1.5, 4)
 # - 建議：1 ~ 3
 LINE_WIDTH = 1
 
+# 字與字之間的額外間距 (整體調整)
+# - 正值增加距離，負值縮減距離
+CHAR_SPACING = 0
+
+# === 🗃️ 外部參數覆寫 ===
+CUSTOM_CONFIG_PATH = os.path.join(BASE_DIR, "custom_config.json")
+if os.path.exists(CUSTOM_CONFIG_PATH):
+    import json
+    with open(CUSTOM_CONFIG_PATH, "r", encoding="utf-8") as f:
+        user_conf = json.load(f)
+        globals().update(user_conf)
+
 # ============ 🪶 渲染控制參數 ============
 # 是否開啟每個層（可未來擴充用）
 ENABLE_SOLID_FILL = True
@@ -188,6 +200,7 @@ PARAM_INFO = {
     'BLOB_SIZE_RANGE': ('墨球大小範圍', '3 ~ 15'),
     'PARTIAL_DOT_RADIUS': ('斷墨點半徑', '1.5 ~ 6'),
     'LINE_WIDTH': ('線條寬度', '1 ~ 3'),
+    'CHAR_SPACING': ('字距調整', '-100 ~ 100'),
     'BLUR_AMOUNT': ('最終高斯模糊量', '1.5 ~ 3'),
     'PARTIAL_DOT_PROBABILITY': ('斷墨點出現機率', '0.0 ~ 1.0'),
 }
