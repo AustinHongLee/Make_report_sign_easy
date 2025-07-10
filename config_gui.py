@@ -23,6 +23,7 @@ class ConfigGUI(tk.Tk):
             "SHEAR_ANGLE": {"var": tk.IntVar(value=config.SHEAR_ANGLE), "min": -30, "max": 30},
             "COLOR_VARIATION": {"var": tk.IntVar(value=config.COLOR_VARIATION), "min": 0, "max": 60},
             "LINE_WIDTH": {"var": tk.IntVar(value=config.LINE_WIDTH), "min": 1, "max": 5},
+            "CHAR_SPACING_OFFSET": {"var": tk.IntVar(value=config.CHAR_SPACING_OFFSET), "min": -100, "max": 100},
         }
         self._build_ui()
         self.update_preview()
@@ -30,7 +31,8 @@ class ConfigGUI(tk.Tk):
     def _build_ui(self):
         row = 0
         for name, info in self.params.items():
-            ttk.Label(self, text=name).grid(row=row, column=0, sticky="w", padx=5, pady=2)
+            desc = config.PARAM_INFO.get(name, (name,))[0]
+            ttk.Label(self, text=f"{desc} ({name})").grid(row=row, column=0, sticky="w", padx=5, pady=2)
             entry = ttk.Entry(self, textvariable=info["var"], width=6)
             entry.grid(row=row, column=1, padx=5)
             scale = ttk.Scale(
@@ -57,9 +59,12 @@ class ConfigGUI(tk.Tk):
             value = int(info["var"].get())
             setattr(config, name, value)
             setattr(builder, name, value)
-        img = builder.generate_text_image("李宗鴻")
+        img = builder.generate_text_image("預覽123ABC!?中文")
         if img:
-            img.thumbnail((200, 200))
+            target_height = 200
+            scale = target_height / img.height
+            new_size = (max(1, int(img.width * scale)), target_height)
+            img = img.resize(new_size, Image.LANCZOS)
             self._tk_img = ImageTk.PhotoImage(img)
             self.preview_label.configure(image=self._tk_img)
 
