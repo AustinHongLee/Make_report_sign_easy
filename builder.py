@@ -4,7 +4,7 @@ import random
 
 # 使用相對路徑引用同一套件內的模組，避免在直接執行時找不到 handfont 套件
 from . import config
-from .extractor import extract_paths
+from .extractor import extract_paths, _load_font
 from .transform import perturb, shear, flip_y
 from .utils import get_spacing, sanitize_filename_char
 
@@ -15,7 +15,7 @@ from .draw_hollow import render_hollow_char
 # 2. 定義需要由「空心專家」處理的字元列表
 HOLLOW_CHARS = "O0ABDPAQRGabdeopqg869"
 
-def generate_text_image(text, font_path=None, size=None, ignore_router=False):
+def generate_text_image(text, font_path=None, size=None, ignore_router=False, clear_cache=False):
     # 保持數字相關設定最新
     if hasattr(config, "sync_digit_overrides"):
         config.sync_digit_overrides()
@@ -26,6 +26,19 @@ def generate_text_image(text, font_path=None, size=None, ignore_router=False):
     """
     給定文字與字體路徑，回傳 PIL.Image。
     此版本包含智慧分派邏輯。
+
+    Parameters
+    ----------
+    text : str
+        要渲染的文字
+    font_path : str, optional
+        字體檔路徑，預設為 ``config.FONT_PATH``
+    size : int, optional
+        圖片尺寸，預設為 ``config.IMAGE_SIZE``
+    ignore_router : bool, optional
+        不使用字元路由表時設為 ``True``
+    clear_cache : bool, optional
+        渲染後是否清除字型快取
     """
     images = []
     spacings = []
@@ -80,6 +93,9 @@ def generate_text_image(text, font_path=None, size=None, ignore_router=False):
         canvas.paste(im, (x, y_offset), im)
         if i < len(spacings) -1:
             x += im.width + spacings[i]
+
+    if clear_cache:
+        _load_font.cache_clear()
 
     return canvas
 
