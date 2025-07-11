@@ -22,12 +22,14 @@ def sanitize_filename_char(c):
     return f'U{ord(c):04X}' if c in config.SPECIAL_RENDER_OVERRIDES or c in '<>:"/\\|?*' else c
 
 
-def get_spacing(ch):
+def get_spacing(ch, size=None):
     """
-    ✅ 根據不同字元類型取得預設間距
+    ✅ 根據不同字元類型取得預設間距 (單位: 像素)
+
+    For space characters the width is derived from the target font size.
     """
     if ch == ' ':
-        base = 500
+        base = int((size or config.IMAGE_SIZE) * 0.5)
     elif ch in config.SPECIAL_RENDER_OVERRIDES:
         base = config.SPECIAL_RENDER_OVERRIDES[ch].get("spacing", -5)
     elif '\u4e00' <= ch <= '\u9fff':
