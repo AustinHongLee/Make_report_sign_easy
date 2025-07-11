@@ -79,4 +79,12 @@ tools/           # 輔助腳本
 本倉庫中除字型檔外的所有程式碼以 [MIT License](LICENSE) 授權釋出。
 字型檔案則依 [FONT_LICENSES.md](FONT_LICENSES.md) 所列之授權條款分別管理。
 
+## 測試 Tests
+專案隨附基本的 `pytest` 測試，可透過下列指令執行：
+
+```bash
+pip install -r requirements.txt
+pytest
+```
+
 Made with ❤️ by [AustinHongLee]
