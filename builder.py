@@ -33,9 +33,9 @@ def generate_text_image(text, font_path=None, size=None, ignore_router=False):
     for ch in text:
         try:
             if ch == ' ':
-                spacing = get_spacing(ch)
+                spacing = get_spacing(ch, size)
                 # 為了避免拼接問題，空白也產生一個透明圖像
-                images.append(Image.new("RGBA", (int(size * spacing), 1)))
+                images.append(Image.new("RGBA", (spacing, 1)))
                 spacings.append(0)
                 continue
 
