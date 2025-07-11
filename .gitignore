@@ -2,3 +2,5 @@ __pycache__/
 *.pyc
 demo_output/
 previews/
+
+project_structure.txt
