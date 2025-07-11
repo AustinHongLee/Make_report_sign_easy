@@ -1,6 +1,14 @@
 from fontTools.ttLib import TTFont
 from fontTools.pens.basePen import BasePen
 from fontTools.pens.transformPen import TransformPen
+from functools import lru_cache
+import os
+
+
+@lru_cache(maxsize=16)
+def _load_font(path: str) -> TTFont:
+    path = os.path.abspath(os.path.normcase(path))
+    return TTFont(path)
 
 
 class PointListPen(BasePen):
@@ -18,7 +26,7 @@ class PointListPen(BasePen):
         self.current_path.append(pt)
 
     def _curveToOne(self, pt1, pt2, pt3):
-        steps = 10
+        steps = 20
         last = self._getCurrentPoint()
         for i in range(1, steps + 1):
             t = i / steps
@@ -37,7 +45,7 @@ class PointListPen(BasePen):
 
 
 def extract_paths(font_path, char):
-    font = TTFont(font_path)
+    font = _load_font(font_path)
     glyphSet = font.getGlyphSet()
     cmap = font.getBestCmap()
     glyph_name = cmap.get(ord(char))
