@@ -75,4 +75,8 @@ tools/           # 輔助腳本
 專案使用的所有字型來源與授權說明已整理於 [FONT_LICENSES.md](FONT_LICENSES.md)。
 在商業用途之前請務必確認各字型的授權條件。
 
+## 代碼授權 Code License
+本倉庫中除字型檔外的所有程式碼以 [MIT License](LICENSE) 授權釋出。
+字型檔案則依 [FONT_LICENSES.md](FONT_LICENSES.md) 所列之授權條款分別管理。
+
 Made with ❤️ by [AustinHongLee]
