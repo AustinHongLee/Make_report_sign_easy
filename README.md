@@ -37,6 +37,8 @@ img.save("example.png")
 介面提供中文說明並支援「字距調整」與**字體檔選擇**功能，
 在左側選擇想要的 `.ttf` 字型後即可即時預覽，按下「儲存設定」會將選擇寫入
 `custom_config.json`，下次載入模組時便會套用。
+若偏好較現代的外觀，可改用 `python -m Make_report_sign_easy.ctk_gui`
+開啟 CustomTkinter 版本的深色介面。
 
 ### 執行範例 Running the demo
 請在 *專案資料夾的上層* （或於安裝後）使用 `python -m` 執行，
