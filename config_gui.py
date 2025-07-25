@@ -11,7 +11,7 @@ if __name__ == "__main__" and __package__ is None:
 
 from . import builder, config
 
-CUSTOM_CONFIG_PATH = os.path.join(os.path.dirname(__file__), "custom_config.json")
+CUSTOM_CONFIG_PATH = os.path.join(os.path.dirname(__file__), "configs", "custom_config.json")
 
 class ConfigGUI(tk.Tk):
     def __init__(self):

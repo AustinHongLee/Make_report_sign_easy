@@ -5,7 +5,7 @@ import json
 from .config import BASE_DIR
 from .safe_char_map import REVERSE_SAFE_CHAR_MAP
 
-ROUTER_PATH = os.path.join(BASE_DIR, "font_routes_template.json")
+ROUTER_PATH = os.path.join(BASE_DIR, "configs", "font_routes_template.json")
 CONFIRM_DIR = os.path.join(BASE_DIR, "confirm")
 FONTS_DIR = os.path.join(BASE_DIR, "fonts")
 

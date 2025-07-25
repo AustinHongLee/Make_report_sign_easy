@@ -36,7 +36,7 @@ img.save("example.png")
 執行 `python -m Make_report_sign_easy.config_gui` 可開啟圖形介面調整參數，
 介面提供中文說明並支援「字距調整」與**字體檔選擇**功能，
 在左側選擇想要的 `.ttf` 字型後即可即時預覽，按下「儲存設定」會將選擇寫入
-`custom_config.json`，下次載入模組時便會套用。
+`configs/custom_config.json`，下次載入模組時便會套用。
 若偏好較現代的外觀，可改用 `python -m Make_report_sign_easy.ctk_gui`
 開啟 CustomTkinter 版本的深色介面。
 
@@ -51,7 +51,7 @@ python -m Make_report_sign_easy.tools.preview_fonts 李
 `preview_fonts.py` 執行完會告知預覽圖片存放的路徑（預設在 `previews/`）。
 
 ## 字型路由 Font Routing
-在 `font_routes_template.json` 中指定字 → 字體的映射，例如：
+在 `configs/font_routes_template.json` 中指定字 → 字體的映射，例如：
 ```json
 {
   "李": "fonts/JasonHandwriting2.ttf",
@@ -67,10 +67,11 @@ fonts/           # 字型檔案
 previews/        # 產生的字型預覽
 confirm/         # 社群確認的最佳字型
 tools/           # 輔助腳本
+configs/         # 儲存 JSON 設定檔
 ```
 
 ## 貢獻方式 Contributing
-1. Fork 本倉庫並新增或修改 `font_routes_template.json`。
+1. Fork 本倉庫並新增或修改 `configs/font_routes_template.json`。
 2. 若有自製字型，請附上授權說明。
 3. 提交 Pull Request，我們會一同確認與測試。
 

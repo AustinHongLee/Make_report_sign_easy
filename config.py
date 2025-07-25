@@ -27,7 +27,7 @@ OUTPUT_DIR = os.path.join(BASE_DIR, "demo_output")
 FONT_PATH = os.path.join(BASE_DIR, 'fonts', 'ChenYuluoyan-2.0-Thin.ttf')
 
 # === 外部字型路由表（支援社群貢獻）===
-ROUTER_PATH = os.path.join(BASE_DIR, 'font_routes_template.json')
+ROUTER_PATH = os.path.join(BASE_DIR, 'configs', 'font_routes_template.json')
 
 if os.path.exists(ROUTER_PATH):
     with open(ROUTER_PATH, 'r', encoding='utf-8') as f:
@@ -138,7 +138,7 @@ SPECIAL_SCALE = 1.0
 SPECIAL_OFFSET_Y = 0.0
 
 # === 🗃️ 外部參數覆寫 ===
-CUSTOM_CONFIG_PATH = os.path.join(BASE_DIR, "custom_config.json")
+CUSTOM_CONFIG_PATH = os.path.join(BASE_DIR, "configs", "custom_config.json")
 if os.path.exists(CUSTOM_CONFIG_PATH):
     import json
     with open(CUSTOM_CONFIG_PATH, "r", encoding="utf-8") as f:
