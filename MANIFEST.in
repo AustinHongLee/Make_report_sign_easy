@@ -1,0 +1,3 @@
+include README.md LICENSE
+recursive-include Make_report_sign_easy/fonts *.ttf
+recursive-include Make_report_sign_easy/configs *.json
