@@ -19,8 +19,14 @@ HOLLOW_CHARS = "O0ABDPAQRGabdeopqg869"
 
 
 @contextmanager
-def _apply_random_config():
-    """Temporarily jitter config parameters within their safe ranges."""
+def _apply_random_config(random_per=10):
+    """Temporarily jitter config parameters within their safe ranges.
+
+    Parameters
+    ----------
+    random_per : float
+        Percentage of the allowed range used for jitter. Default is 10.
+    """
     original = {}
     for key, (_, rng) in getattr(config, 'PARAM_INFO', {}).items():
         if not hasattr(config, key):
@@ -31,7 +37,7 @@ def _apply_random_config():
             continue
         low, high = map(float, numbers)
         if isinstance(val, (int, float)):
-            delta = (high - low) * 0.1
+            delta = (high - low) * (random_per / 100)
             new_val = val + rnd.uniform(-delta, delta)
             new_val = max(low, min(high, new_val))
             if isinstance(val, int):
@@ -39,7 +45,7 @@ def _apply_random_config():
             original[key] = val
             setattr(config, key, new_val)
         elif isinstance(val, tuple) and len(val) == 2:
-            delta = (high - low) * 0.1
+            delta = (high - low) * (random_per / 100)
             new_vals = []
             for v in val:
                 nv = v + rnd.uniform(-delta, delta)
@@ -55,7 +61,8 @@ def _apply_random_config():
         for k, v in original.items():
             setattr(config, k, v)
 
-def generate_text_image(text, font_path=None, size=None, ignore_router=False, clear_cache=False, random=False):
+def generate_text_image(text, font_path=None, size=None, ignore_router=False,
+                        clear_cache=False, random=False, random_per=10):
     # 保持數字相關設定最新
     if hasattr(config, "sync_digit_overrides"):
         config.sync_digit_overrides()
@@ -82,14 +89,15 @@ def generate_text_image(text, font_path=None, size=None, ignore_router=False, cl
     random : bool, optional
         若為 ``True``，將在渲染過程中暫時隨機化配置參數，
         讓每次產生的字形略有不同
+    random_per : float, optional
+        隨機化幅度 (百分比)，預設為 10
     """
-    ctx = _apply_random_config() if random else nullcontext()
-
     images = []
     spacings = []
 
-    with ctx:
-        for ch in text:
+    for ch in text:
+        ctx = _apply_random_config(random_per) if random else nullcontext()
+        with ctx:
             try:
                 if ch == ' ':
                     spacing = get_spacing(ch, size)
