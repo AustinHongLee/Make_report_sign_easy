@@ -23,7 +23,7 @@ install.bat    # Windows 用戶，自動安裝依賴與套件
 ## 快速使用 Quick Start
 ```python
 from Make_report_sign_easy.builder import generate_text_image
-img = generate_text_image("手寫效果")
+img = generate_text_image("手寫效果", random=True)  # randomize parameters for variety
 img.save("example.png")
 ```
 
@@ -32,6 +32,8 @@ img.save("example.png")
 並透過 `PERTURB_JITTER`、`SHEAR_JITTER` 讓每個字產生些許隨機變化，
 也可以變更 `FONT_PATH` 或使用下方的 GUI 選擇不同字型，
 使整體效果更接近自然手寫。
+若想在每次渲染時自動微調設定參數，可將 `generate_text_image` 的
+`random` 參數設為 `True`。
 
 ### 參數圖形介面 Config GUI
 執行 `python -m Make_report_sign_easy.config_gui` 可開啟圖形介面調整參數，
