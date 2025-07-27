@@ -10,6 +10,7 @@ if __name__ == "__main__" and __package__ is None:
     __package__ = "Make_report_sign_easy"
 
 from . import builder, config
+from . import auto_update
 
 CUSTOM_CONFIG_PATH = os.path.join(os.path.dirname(__file__), "configs", "custom_config.json")
 
@@ -105,6 +106,7 @@ class ConfigGUI(tk.Tk):
 
 
 def main():
+    auto_update.check_for_update()
     app = ConfigGUI()
     app.mainloop()
 

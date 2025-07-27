@@ -8,5 +8,6 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR"
 
 python -m pip install -r requirements.txt
-
+mkdir -p previews confirm
 echo "Dependencies installed."
+python demo.py "$@"

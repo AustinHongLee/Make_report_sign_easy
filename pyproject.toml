@@ -30,4 +30,5 @@ include-package-data = true
 "Make_report_sign_easy" = [
     "fonts/*.ttf",
     "configs/*.json",
+    "version.json",
 ]
