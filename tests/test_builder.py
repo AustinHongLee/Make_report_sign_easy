@@ -22,3 +22,11 @@ def test_generate_text_image_random_option():
     img = builder.generate_text_image('abc', font_path=config.FONT_PATH, random=True)
     assert isinstance(img, Image.Image)
     assert img.width > 0 and img.height > 0
+
+
+def test_generate_text_image_random_per():
+    random.seed(0)
+    img = builder.generate_text_image('abc', font_path=config.FONT_PATH,
+                                      random=True, random_per=20)
+    assert isinstance(img, Image.Image)
+    assert img.width > 0 and img.height > 0
