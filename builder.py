@@ -79,6 +79,9 @@ def generate_text_image(text, font_path=None, size=None, ignore_router=False, cl
         不使用字元路由表時設為 ``True``
     clear_cache : bool, optional
         渲染後是否清除字型快取
+    random : bool, optional
+        若為 ``True``，將在渲染過程中暫時隨機化配置參數，
+        讓每次產生的字形略有不同
     """
     ctx = _apply_random_config() if random else nullcontext()
 
