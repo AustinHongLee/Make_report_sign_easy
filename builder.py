@@ -1,6 +1,8 @@
 from PIL import Image
 import os
-import random
+import random as rnd
+import re
+from contextlib import contextmanager, nullcontext
 
 # 使用相對路徑引用同一套件內的模組，避免在直接執行時找不到 handfont 套件
 from . import config
@@ -15,7 +17,45 @@ from .draw_hollow import render_hollow_char
 # 2. 定義需要由「空心專家」處理的字元列表
 HOLLOW_CHARS = "O0ABDPAQRGabdeopqg869"
 
-def generate_text_image(text, font_path=None, size=None, ignore_router=False, clear_cache=False):
+
+@contextmanager
+def _apply_random_config():
+    """Temporarily jitter config parameters within their safe ranges."""
+    original = {}
+    for key, (_, rng) in getattr(config, 'PARAM_INFO', {}).items():
+        if not hasattr(config, key):
+            continue
+        val = getattr(config, key)
+        numbers = re.findall(r'-?\d+\.?\d*', rng)
+        if len(numbers) != 2:
+            continue
+        low, high = map(float, numbers)
+        if isinstance(val, (int, float)):
+            delta = (high - low) * 0.1
+            new_val = val + rnd.uniform(-delta, delta)
+            new_val = max(low, min(high, new_val))
+            if isinstance(val, int):
+                new_val = int(round(new_val))
+            original[key] = val
+            setattr(config, key, new_val)
+        elif isinstance(val, tuple) and len(val) == 2:
+            delta = (high - low) * 0.1
+            new_vals = []
+            for v in val:
+                nv = v + rnd.uniform(-delta, delta)
+                nv = max(low, min(high, nv))
+                if isinstance(v, int):
+                    nv = int(round(nv))
+                new_vals.append(nv)
+            original[key] = val
+            setattr(config, key, tuple(new_vals))
+    try:
+        yield
+    finally:
+        for k, v in original.items():
+            setattr(config, k, v)
+
+def generate_text_image(text, font_path=None, size=None, ignore_router=False, clear_cache=False, random=False):
     # 保持數字相關設定最新
     if hasattr(config, "sync_digit_overrides"):
         config.sync_digit_overrides()
@@ -40,42 +80,45 @@ def generate_text_image(text, font_path=None, size=None, ignore_router=False, cl
     clear_cache : bool, optional
         渲染後是否清除字型快取
     """
+    ctx = _apply_random_config() if random else nullcontext()
+
     images = []
     spacings = []
 
-    for ch in text:
-        try:
-            if ch == ' ':
-                spacing = get_spacing(ch, size)
-                # 為了避免拼接問題，空白也產生一個透明圖像
-                images.append(Image.new("RGBA", (spacing, 1)))
-                spacings.append(0)
-                continue
+    with ctx:
+        for ch in text:
+            try:
+                if ch == ' ':
+                    spacing = get_spacing(ch, size)
+                    # 為了避免拼接問題，空白也產生一個透明圖像
+                    images.append(Image.new("RGBA", (spacing, 1)))
+                    spacings.append(0)
+                    continue
 
-            # 通用前置作業：提取路徑和變形
-            # 若有特殊指定用字型，就改用該字型
-            font_used = font_path if ignore_router else config.FONT_ROUTER.get(ch, font_path)
-            paths = extract_paths(font_used, ch)
-            # 依據設定值加入少量隨機變形，模擬手寫差異
-            perturb_amount = config.PERTURB + random.uniform(-config.PERTURB_JITTER, config.PERTURB_JITTER)
-            shear_amount = config.SHEAR_ANGLE + random.uniform(-config.SHEAR_JITTER, config.SHEAR_JITTER)
-            paths = flip_y(shear(perturb(paths, perturb_amount), shear_amount))
+                # 通用前置作業：提取路徑和變形
+                # 若有特殊指定用字型，就改用該字型
+                font_used = font_path if ignore_router else config.FONT_ROUTER.get(ch, font_path)
+                paths = extract_paths(font_used, ch)
+                # 依據設定值加入少量隨機變形，模擬手寫差異
+                perturb_amount = config.PERTURB + rnd.uniform(-config.PERTURB_JITTER, config.PERTURB_JITTER)
+                shear_amount = config.SHEAR_ANGLE + rnd.uniform(-config.SHEAR_JITTER, config.SHEAR_JITTER)
+                paths = flip_y(shear(perturb(paths, perturb_amount), shear_amount))
 
             # ⭐ --- 智慧分派邏輯 --- ⭐
-            char_img = None
-            if ch in HOLLOW_CHARS:
-                # 任務分派給「空心專家」
-                char_img = render_hollow_char(paths, size, current_char=ch)
-            else:
-                # 其他所有字元 (包含中文字和簡單符號) 都交給比較穩定的「書法家」
-                char_img = render_cjk_char(paths, size, current_char=ch)
+                char_img = None
+                if ch in HOLLOW_CHARS:
+                    # 任務分派給「空心專家」
+                    char_img = render_hollow_char(paths, size, current_char=ch)
+                else:
+                    # 其他所有字元 (包含中文字和簡單符號) 都交給比較穩定的「書法家」
+                    char_img = render_cjk_char(paths, size, current_char=ch)
             
-            if char_img:
-                images.append(char_img)
-                spacings.append(get_spacing(ch))
+                if char_img:
+                    images.append(char_img)
+                    spacings.append(get_spacing(ch))
 
-        except Exception as e:
-            print(f"⚠️ 字「{ch}」產生失敗：{e}")
+            except Exception as e:
+                print(f"⚠️ 字「{ch}」產生失敗：{e}")
 
     if not images:
         return None
