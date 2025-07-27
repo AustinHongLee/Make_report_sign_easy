@@ -16,6 +16,7 @@ if __name__ == "__main__" and __package__ is None:
 
 # 以相對路徑匯入模組，方便直接以 `python -m 包名.demo` 執行
 from . import generate_text_image, sanitize_filename_char
+from . import auto_update
 from .config import OUTPUT_DIR
 
 def run_demo(texts, output_dir, font_path=None, size=None):
@@ -41,6 +42,7 @@ def run_demo(texts, output_dir, font_path=None, size=None):
             print(f"⚠️ 無法產生圖像：{text}")
 
 def main():
+    auto_update.check_for_update()
     parser = argparse.ArgumentParser(description="Render sample texts to images")
     parser.add_argument("texts", nargs="*", help="Texts to render")
     parser.add_argument("-o", "--output-dir", default=OUTPUT_DIR, help="Output directory")

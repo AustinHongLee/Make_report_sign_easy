@@ -16,7 +16,8 @@ pip install pillow fonttools
 # 下載本專案
 git clone https://github.com/AustinHongLee/Make_report_sign_easy.git
 cd Make_report_sign_easy
-bash setup.sh  # 安裝相依套件
+bash setup.sh  # 安裝相依套件 (Linux/macOS)
+install.bat    # Windows 用戶
 ```
 
 ## 快速使用 Quick Start
@@ -98,6 +99,10 @@ pyinstaller -F -m Make_report_sign_easy
 ```
 The configuration automatically detects the PyInstaller runtime path.
 
+### Auto Update
+The command-line and GUI tools check GitHub for a newer version on startup.
+If a new release is found, a reminder message will be shown.
+
 ## 測試 Tests
 專案隨附基本的 `pytest` 測試，可透過下列指令執行：
 
@@ -105,5 +110,8 @@ The configuration automatically detects the PyInstaller runtime path.
 bash setup.sh  # 或直接安裝需求套件
 pytest
 ```
+
+### 進階開發指引
+更多關於部署與後續優化的建議，請參考 [DEVELOPMENT_GUIDE.md](DEVELOPMENT_GUIDE.md)。
 
 Made with ❤️ by [AustinHongLee]
