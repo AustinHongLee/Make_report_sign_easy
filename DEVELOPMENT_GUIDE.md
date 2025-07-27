@@ -12,7 +12,7 @@
    - 維持標準套件結構，視需要補充 `setup.py` 以相容舊版工具。
    - 保持 `python -m Make_report_sign_easy` 或直接 `import Make_report_sign_easy` 的使用方式。
 2. **一鍵安裝與自動更新**
-   - 提供 `setup.sh` 及 `install.bat`，可一次安裝依賴並啟動主程式。
+   - 提供 `setup.sh` 及 `install.bat`，可一次安裝依賴與套件並啟動主程式。
    - `auto_update.py` 會在 CLI/GUI 啟動時檢查 GitHub 版本並提示升級。
 3. **PyInstaller 打包**
    - 編寫程式時避免依賴特定安裝工具，以利打包。
@@ -33,7 +33,7 @@
   python -m Make_report_sign_easy
   ```
 - 一般用戶：
-  下載並執行 `install.bat`（或 `setup.sh`）以安裝依賴並啟動主程式。
+  下載並執行 `install.bat`（或 `setup.sh`）以安裝依賴和本套件，並啟動主程式。
 - 未來亦可提供 PyInstaller 打包版，單檔執行並包含自動更新機制。
 
 ## 五、總結

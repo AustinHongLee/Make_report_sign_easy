@@ -16,8 +16,8 @@ pip install pillow fonttools
 # 下載本專案
 git clone https://github.com/AustinHongLee/Make_report_sign_easy.git
 cd Make_report_sign_easy
-bash setup.sh  # 安裝相依套件 (Linux/macOS)
-install.bat    # Windows 用戶
+bash setup.sh  # 安裝依賴並安裝套件 (Linux/macOS)
+install.bat    # Windows 用戶，自動安裝依賴與套件
 ```
 
 ## 快速使用 Quick Start
@@ -107,7 +107,7 @@ If a new release is found, a reminder message will be shown.
 專案隨附基本的 `pytest` 測試，可透過下列指令執行：
 
 ```bash
-bash setup.sh  # 或直接安裝需求套件
+bash setup.sh  # 安裝依賴與套件後執行測試
 pytest
 ```
 
