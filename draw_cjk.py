@@ -2,15 +2,7 @@ from PIL import Image, ImageDraw, ImageFilter
 import random
 # 使用相對匯入，確保在未安裝為系統套件時仍可正常執行
 from . import config
-
-# 👉 工具
-def with_alpha(rgb, alpha):
-    return (rgb[0], rgb[1], rgb[2], alpha)
-
-def varied_color(base, variation=0, alpha=255):
-    return tuple(
-        min(255, max(0, base[i] + random.randint(-variation, variation))) for i in range(3)
-    ) + (alpha,)
+from .utils import with_alpha, varied_color
 
 
 # === 單層繪製邏輯 ===

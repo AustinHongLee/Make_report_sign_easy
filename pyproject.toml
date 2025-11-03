@@ -14,16 +14,23 @@ dependencies = [
     "Pillow",
     "fonttools",
     "customtkinter",
+    "packaging",
 ]
 
 [project.scripts]
 handfont-demo = "Make_report_sign_easy.demo:main"
 handfont-config-gui = "Make_report_sign_easy.config_gui:main"
 handfont-ctk-gui = "Make_report_sign_easy.ctk_gui:main"
+handfont-fill-pdf = "Make_report_sign_easy.tools.fill_pdf_simple:main"
+handfont-fill-pdf-gui = "Make_report_sign_easy.tools.fill_pdf_gui:main"
 
 [tool.setuptools]
 package-dir = {"Make_report_sign_easy" = "."}
-packages = ["Make_report_sign_easy"]
+# Explicitly include subpackages to make entry points work when installed
+packages = [
+    "Make_report_sign_easy",
+    "Make_report_sign_easy.tools",
+]
 include-package-data = true
 
 [tool.setuptools.package-data]

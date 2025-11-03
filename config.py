@@ -73,10 +73,7 @@ SHEAR_ANGLE = 20
 # 建議值：0° ~ 10°
 SHEAR_JITTER = 3
 
-# 模糊半徑（模擬墨水微暈染）
-# - 建議值：1 ~ 5（過高會模糊得太重）
-# - 推薦值：3，模擬實體紙張吸墨
-BLUR_RADIUS = 3
+# （已廢除）原 BLUR_RADIUS 改用 BLUR_AMOUNT，避免雙名參數造成混淆
 
 
 # ==============================
@@ -197,12 +194,15 @@ for d in '0123456789':
     SPECIAL_RENDER_OVERRIDES[d].setdefault('offset_y', DIGIT_OFFSET_Y)
 
 # 新增：確保後續修改縮放或位移時可即時套用
+
+
 def sync_digit_overrides():
     """Synchronize digit settings into SPECIAL_RENDER_OVERRIDES."""
     for d in '0123456789':
         SPECIAL_RENDER_OVERRIDES.setdefault(d, {})
         SPECIAL_RENDER_OVERRIDES[d]['scale'] = DIGIT_SCALE
         SPECIAL_RENDER_OVERRIDES[d]['offset_y'] = DIGIT_OFFSET_Y
+
 
 sync_digit_overrides()
 
@@ -217,7 +217,7 @@ PARAM_INFO = {
     'PERTURB_JITTER': ('顫抖幅度隨機值', '0 ~ 5'),
     'SHEAR_ANGLE': ('字體傾斜角度', '-20° ~ +20°'),
     'SHEAR_JITTER': ('傾斜角度隨機值', '0° ~ 10°'),
-    'BLUR_RADIUS': ('墨跡模糊半徑', '1 ~ 5'),
+    # 'BLUR_RADIUS': ('墨跡模糊半徑', '1 ~ 5'),  # 已廢除，請改用 BLUR_AMOUNT
     'COLOR_VARIATION': ('墨色亮度波動', '10 ~ 60'),
     'ALPHA_RANGE': ('筆畫透明度範圍', '120 ~ 255'),
     'BLOB_SIZE_RANGE': ('墨球大小範圍', '3 ~ 15'),
@@ -242,3 +242,108 @@ def print_config_help():
     for key, (desc, rng) in PARAM_INFO.items():
         val = globals().get(key)
         print(f"{key:20} = {val:<10}  # {desc} (建議 {rng})")
+
+# ==============================
+# 🧩 參數治理：預設快照 / 驗證 / 預設檔
+# ==============================
+
+# 便於一鍵回復：載入本檔後立即建立預設快照（僅收錄常見可調參數）
+
+
+_DEFAULT_KEYS = [
+    'IMAGE_SIZE', 'UPSCALE_FACTOR', 'PERTURB', 'PERTURB_JITTER',
+    'SHEAR_ANGLE', 'SHEAR_JITTER', 'COLOR_BASE', 'COLOR_VARIATION',
+    'ALPHA_RANGE', 'BLOB_SIZE_RANGE', 'PARTIAL_DOT_RADIUS', 'LINE_WIDTH',
+    'CHAR_SPACING_OFFSET', 'DIGIT_SCALE', 'DIGIT_OFFSET_Y', 'ALPHA_SCALE',
+    'ALPHA_OFFSET_Y', 'CJK_SCALE', 'CJK_OFFSET_Y', 'SPECIAL_SCALE',
+    'SPECIAL_OFFSET_Y', 'BLUR_AMOUNT', 'PARTIAL_DOT_PROBABILITY',
+]
+DEFAULT_SNAPSHOT = {k: globals().get(k) for k in _DEFAULT_KEYS}
+
+PRESETS_DIR = os.path.join(BASE_DIR, 'configs', 'presets')
+os.makedirs(PRESETS_DIR, exist_ok=True)
+
+
+def _parse_range_str(rng: str):
+    """從 'a ~ b' / '-20° ~ +20°' 取出 min/max 浮點數。"""
+    import re
+    nums = re.findall(r'-?\d+\.?\d*', rng)
+    if len(nums) >= 2:
+        lo, hi = float(nums[0]), float(nums[1])
+        if lo > hi:
+            lo, hi = hi, lo
+        return lo, hi
+    return None
+
+
+def _clamp_value(key, value):
+    info = PARAM_INFO.get(key)
+    if not info:
+        return value
+    rng = _parse_range_str(info[1])
+    if not rng:
+        return value
+    lo, hi = rng
+    if isinstance(value, (int, float)):
+        v = max(lo, min(hi, float(value)))
+        return int(round(v)) if isinstance(value, int) else v
+    if (
+        isinstance(value, tuple)
+        and len(value) == 2
+        and all(isinstance(x, (int, float)) for x in value)
+    ):
+        v0 = max(lo, min(hi, float(value[0])))
+        v1 = max(lo, min(hi, float(value[1])))
+        v0 = int(round(v0)) if isinstance(value[0], int) else v0
+        v1 = int(round(v1)) if isinstance(value[1], int) else v1
+        return (v0, v1)
+    return value
+
+
+def validate_and_apply(conf: dict, strict: bool = False):
+    """將 conf 中的值套入目前設定並依 PARAM_INFO 夾限。
+    若 strict=True，遇未知 key 時將忽略並提示。
+    """
+    for k, v in conf.items():
+        if strict and k not in PARAM_INFO and k not in ('COLOR_BASE',):
+            print(f"⚠️ 未知參數：{k}，已忽略")
+            continue
+        if k in PARAM_INFO:
+            v = _clamp_value(k, v)
+        if k == 'COLOR_BASE' and isinstance(v, (list, tuple)) and len(v) == 3:
+            v = tuple(int(max(0, min(255, x))) for x in v)
+        globals()[k] = v
+
+
+def reset_to_defaults():
+    """回復到載入時的預設快照。"""
+    validate_and_apply(DEFAULT_SNAPSHOT, strict=False)
+
+
+def list_presets():
+    return [f[:-5] for f in os.listdir(PRESETS_DIR) if f.endswith('.json')]
+
+
+def export_preset(name: str, include_font: bool = True):
+    data = {k: globals().get(k) for k in _DEFAULT_KEYS}
+    if include_font:
+        data['FONT_PATH'] = FONT_PATH
+    data['config_version'] = 1
+    path = os.path.join(PRESETS_DIR, f"{name}.json")
+    with open(path, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+    print(f"✅ 已匯出預設檔：{path}")
+
+
+def load_preset(name: str, apply_font: bool = True):
+    path = os.path.join(PRESETS_DIR, f"{name}.json")
+    if not os.path.exists(path):
+        raise FileNotFoundError(f"找不到預設檔：{path}")
+    with open(path, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+    conf = {k: v for k, v in data.items() if k in _DEFAULT_KEYS}
+    validate_and_apply(conf, strict=False)
+    if apply_font and 'FONT_PATH' in data:
+        globals()['FONT_PATH'] = data['FONT_PATH']
+    sync_digit_overrides()
+    print(f"✅ 已載入預設：{name}")

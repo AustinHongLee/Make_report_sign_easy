@@ -44,7 +44,10 @@ class PointListPen(BasePen):
         self._closePath()
 
 
+@lru_cache(maxsize=256)
 def extract_paths(font_path, char):
+    # 正規化路徑避免快取 key 重複
+    font_path = os.path.abspath(os.path.normcase(font_path))
     font = _load_font(font_path)
     glyphSet = font.getGlyphSet()
     cmap = font.getBestCmap()
@@ -57,11 +60,24 @@ def extract_paths(font_path, char):
 
     if glyph.isComposite():
         for comp in glyph.components:
-            tp = TransformPen(pen, (
-                getattr(comp, "xScale", 1.0), getattr(comp, "xyScale", 0.0),
-                getattr(comp, "yxScale", 0.0), getattr(comp, "yScale", 1.0),
-                getattr(comp, "x", 0), getattr(comp, "y", 0)
-            ))
+            # 盡量使用 fontTools 的 transform 矩陣（a, b, c, d, e, f）
+            if hasattr(comp, 'transform') and comp.transform is not None:
+                # comp.transform 可能是 Transform 或 tuple
+                try:
+                    m = tuple(comp.transform)
+                except Exception:
+                    m = (
+                        getattr(comp, "xScale", 1.0), getattr(comp, "xyScale", 0.0),
+                        getattr(comp, "yxScale", 0.0), getattr(comp, "yScale", 1.0),
+                        getattr(comp, "x", 0), getattr(comp, "y", 0)
+                    )
+            else:
+                m = (
+                    getattr(comp, "xScale", 1.0), getattr(comp, "xyScale", 0.0),
+                    getattr(comp, "yxScale", 0.0), getattr(comp, "yScale", 1.0),
+                    getattr(comp, "x", 0), getattr(comp, "y", 0)
+                )
+            tp = TransformPen(pen, m)
             glyphSet[comp.glyphName].draw(tp)
     else:
         glyphSet[glyph_name].draw(pen)

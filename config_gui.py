@@ -70,9 +70,10 @@ class ConfigGUI(tk.Tk):
         self.preview_label = ttk.Label(self)
         self.preview_label.grid(row=0, column=3, rowspan=row, padx=10, pady=10)
 
-        ttk.Button(self, text="儲存設定", command=self.save_config).grid(
-            row=row, column=0, columnspan=3, pady=10
-        )
+        btn_frame = ttk.Frame(self)
+        btn_frame.grid(row=row, column=0, columnspan=3, pady=10)
+        ttk.Button(btn_frame, text="重設預設", command=self.reset_defaults).grid(row=0, column=0, padx=5)
+        ttk.Button(btn_frame, text="儲存設定", command=self.save_config).grid(row=0, column=1, padx=5)
 
     def update_preview(self):
         for name, info in self.params.items():
@@ -103,6 +104,22 @@ class ConfigGUI(tk.Tk):
         with open(CUSTOM_CONFIG_PATH, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
         print(f"✅ 已儲存 {CUSTOM_CONFIG_PATH}")
+
+    def reset_defaults(self):
+        # 回復 config 預設快照
+        try:
+            config.reset_to_defaults()
+        except Exception:
+            pass
+        # 同步 UI 變數
+        for name, info in self.params.items():
+            val = getattr(config, name)
+            info["var"].set(val)
+        # 更新字型選擇
+        default_font = os.path.basename(config.FONT_PATH)
+        if default_font in self.fonts_list:
+            self.font_var.set(default_font)
+        self.update_preview()
 
 
 def main():
