@@ -167,12 +167,19 @@ The command-line and GUI tools check GitHub for a newer version on startup.
 If a new release is found, a reminder message will be shown.
 
 ## 測試 Tests
-專案隨附基本的 `pytest` 測試，可透過下列指令執行：
+專案隨附基本的 `pytest` 測試：
 
-```bash
-bash setup.sh  # 安裝依賴與套件後執行測試
-pytest
-```
+- 安裝依賴後執行（建議加上 `-q` 簡化輸出）：
+  - Linux/macOS：
+    ```bash
+    pip install -r requirements.txt
+    pytest -q
+    ```
+  - Windows (PowerShell)：
+    ```powershell
+    pip install -r requirements.txt
+    pytest -q
+    ```
 
 ### 進階開發指引
 更多關於部署與後續優化的建議，請參考 [docs/DEVELOPMENT_GUIDE.md](docs/DEVELOPMENT_GUIDE.md)。
