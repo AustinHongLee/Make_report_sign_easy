@@ -53,8 +53,10 @@ img.save("example.png")
 
 ### GUI 快速入門（推薦）
 ```powershell
-# 在專案根（或安裝後）執行：
+# 在專案根（或安裝後）執行 GUI：
 python tools/fill_pdf_gui.py
+# 如需「不阻塞終端」啟動（Windows）：
+Start-Process -FilePath (Get-Command pythonw).Source -ArgumentList 'tools/fill_pdf_gui.py'
 ```
 - 選擇含有 FreeText 註解的 PDF（註解內容作為欄位鍵）
 - 讀取欄位 → 可載入 `samples/values_sample.json`
@@ -119,6 +121,18 @@ tests/            # 測試
 ```
 
 更多細節請參考 [docs/PROJECT_STRUCTURE.md](docs/PROJECT_STRUCTURE.md)。
+
+## 疑難排解 Troubleshooting
+- 啟動 GUI 後無字型可用或字缺字：
+  - 建議設定 MRSE_FONTS_DIR 指向你的字型資料夾，或將常用字型複製到使用者字型資料夾（Windows: `%APPDATA%/MakeReportSignEasy/fonts`）。
+  - Router 路徑若寫成 `fonts/xxx.ttf`，會先在外部/使用者字型找，再退回內建 `fonts/`。
+- Windows 終端被 GUI 阻塞：
+  - 使用 `pythonw` 或上面示範的 `Start-Process` 即可不阻塞終端。
+- 安裝套件時遇到依賴問題：
+  - 優先使用 `pip install -r requirements.txt`；若仍有問題，嘗試升級 pip：`python -m pip install -U pip`。
+- 預覽或輸出 PDF 有字型替換或渲染異常：
+  - 檢查該字是否在路由表中對應正確字型，或該字型實際是否包含該字。
+  - 使用 `tools/preview_fonts.py` 先預覽單字多字型的效果，選擇最合適者加入路由。
 
 ## 貢獻方式 Contributing
 1. Fork 本倉庫並新增或修改 `configs/font_routes_template.json`。
