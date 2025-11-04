@@ -1,0 +1,5 @@
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+# Keep default rule set; rely on line-length to reduce noise.

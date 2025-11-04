@@ -15,6 +15,36 @@ if getattr(sys, 'frozen', False):
 else:
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
+# 允許在專案根與 src 版位之間切換資源位置（fonts/configs/version.json）
+# - 在尚未完成搬移的過渡期，會自動於下列候選目錄搜尋：
+#   1) 目前此檔所在目錄（BASE_DIR）
+#   2) 專案根下的 Make_report_sign_easy
+#   3) 專案根/src/Make_report_sign_easy
+_CANDIDATE_BASE_DIRS = [BASE_DIR]
+if (
+    BASE_DIR.endswith('src\\Make_report_sign_easy')
+    or BASE_DIR.endswith('src/Make_report_sign_easy')
+):
+    _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(BASE_DIR)))
+else:
+    _REPO_ROOT = os.path.dirname(BASE_DIR)
+
+_ROOT_PKG_DIR = os.path.join(_REPO_ROOT, 'Make_report_sign_easy')
+_SRC_PKG_DIR = os.path.join(_REPO_ROOT, 'src', 'Make_report_sign_easy')
+for _d in (_ROOT_PKG_DIR, _SRC_PKG_DIR):
+    if os.path.isdir(_d) and _d not in _CANDIDATE_BASE_DIRS:
+        _CANDIDATE_BASE_DIRS.append(_d)
+
+
+def _find_in_candidates(*parts):
+    """回傳第一個存在的路徑（基於候選 BASE_DIRs）。若都不存在，回傳以 BASE_DIR 為基底的路徑。"""
+    for _base in _CANDIDATE_BASE_DIRS:
+        _p = os.path.join(_base, *parts)
+        if os.path.exists(_p):
+            return _p
+    return os.path.join(BASE_DIR, *parts)
+
+
 # === 📂 輸出資料夾 ===
 # demo.py 會將產生的圖片輸出到此資料夾
 OUTPUT_DIR = os.path.join(BASE_DIR, "demo_output")
@@ -24,22 +54,116 @@ OUTPUT_DIR = os.path.join(BASE_DIR, "demo_output")
 # ==============================
 
 # 使用的 TrueType 字體（支援中文）：建議為細體或筆跡風格字體
-FONT_PATH = os.path.join(BASE_DIR, 'fonts', 'ChenYuluoyan-2.0-Thin.ttf')
+#
+# 為了避免在 wheel 中內嵌大量字型，我們支援外部字型目錄：
+# - 環境變數：MRSE_FONTS_DIR 指向字型資料夾
+# - 使用者目錄：
+#   - Windows: %APPDATA%/MakeReportSignEasy/fonts
+#   - macOS:   ~/Library/Application Support/MakeReportSignEasy/fonts
+#   - Linux:   ~/.local/share/MakeReportSignEasy/fonts
+# - 專案/套件內：.../fonts（開發或內建最小字型）
+
+
+def _user_fonts_dir():
+    home = os.path.expanduser('~')
+    if sys.platform.startswith('win'):
+        appdata = os.getenv('APPDATA') or os.path.join(
+            home, 'AppData', 'Roaming'
+        )
+        return os.path.join(appdata, 'MakeReportSignEasy', 'fonts')
+    elif sys.platform == 'darwin':
+        return os.path.join(
+            home, 'Library', 'Application Support',
+            'MakeReportSignEasy', 'fonts'
+        )
+    else:
+        return os.path.join(
+            home, '.local', 'share', 'MakeReportSignEasy', 'fonts'
+        )
+
+
+def _font_search_dirs():
+    dirs = []
+    env_dir = os.getenv('MRSE_FONTS_DIR')
+    if env_dir:
+        dirs.append(env_dir)
+    udir = _user_fonts_dir()
+    dirs.append(udir)
+    # 專案/套件內 fonts
+    for base in _CANDIDATE_BASE_DIRS:
+        d = os.path.join(base, 'fonts')
+        if d not in dirs:
+            dirs.append(d)
+    # Windows 系統字型資料夾（最後備援，只讀）
+    if sys.platform.startswith('win'):
+        win_fonts = os.path.join(
+            os.environ.get('WINDIR', r'C:\\Windows'), 'Fonts'
+        )
+        if win_fonts not in dirs:
+            dirs.append(win_fonts)
+    return dirs
+
+
+def _first_existing_dir(paths):
+    for p in paths:
+        if p and os.path.isdir(p):
+            return p
+    return None
+
+
+FONTS_DIR = _first_existing_dir(_font_search_dirs()) or _find_in_candidates(
+    'fonts'
+)
+if FONTS_DIR:
+    FONT_PATH = os.path.join(FONTS_DIR, 'ChenYuluoyan-2.0-Thin.ttf')
+else:
+    FONT_PATH = _find_in_candidates('fonts', 'ChenYuluoyan-2.0-Thin.ttf')
 
 # === 外部字型路由表（支援社群貢獻）===
-ROUTER_PATH = os.path.join(BASE_DIR, 'configs', 'font_routes_template.json')
+ROUTER_PATH = _find_in_candidates('configs', 'font_routes_template.json')
 
 if os.path.exists(ROUTER_PATH):
     with open(ROUTER_PATH, 'r', encoding='utf-8') as f:
         FONT_ROUTER = json.load(f)
 else:
     FONT_ROUTER = {}
-    
-for ch, path in FONT_ROUTER.items():
-    abs_path = os.path.join(BASE_DIR, path) if not os.path.isabs(path) else path
+
+
+def _resolve_router_path(p: str) -> str:
+    """以相容舊版行為優先：
+    1) 外部字型目錄與使用者字型目錄（MRSE_FONTS_DIR、AppData 等）
+    2) BASE_DIR/p（舊版 router 內容多為 'fonts/...'）
+    3) 與 router 同目錄的相對路徑（若有人自訂相對於檔案）
+    4) 原字串（最後 fallback）
+    回傳第一個存在的候選；若都不存在，回傳 BASE_DIR/p（並提示警告）。
+    """
+    if os.path.isabs(p):
+        return p
+    candidates = []
+    # 外部與使用者字型目錄優先
+    for d in _font_search_dirs():
+        if os.path.dirname(p) == '':
+            candidates.append(os.path.join(d, os.path.basename(p)))
+        else:
+            # 若 router 給 'fonts/xxx.ttf'，轉為以 d 為根的相對路徑
+            rel = os.path.relpath(p, 'fonts') if p.startswith('fonts') else p
+            candidates.append(os.path.join(d, rel))
+    # 舊版：相對於 BASE_DIR
+    candidates.append(os.path.join(BASE_DIR, p))
+    # 相對於 router 檔所在目錄
+    if os.path.isfile(ROUTER_PATH):
+        candidates.append(os.path.join(os.path.dirname(ROUTER_PATH), p))
+    for c in candidates:
+        if os.path.exists(c):
+            return c
+    return os.path.join(BASE_DIR, p)
+
+
+for ch, path in list(FONT_ROUTER.items()):
+    abs_path = _resolve_router_path(path)
     if not os.path.exists(abs_path):
         print(f"⚠️ 字「{ch}」對應的字型不存在：{abs_path}")
-    FONT_ROUTER[ch] = abs_path  # ← 這句才是關鍵，把絕對路徑寫回去
+    FONT_ROUTER[ch] = abs_path  # 實際使用時一律帶絕對路徑
 # 單一字圖像輸出尺寸（正方形），單位：像素
 # - 常見值：256 ~ 1024
 # - 建議：512（平衡細節與效能）
@@ -135,7 +259,7 @@ SPECIAL_SCALE = 1.0
 SPECIAL_OFFSET_Y = 0.0
 
 # === 🗃️ 外部參數覆寫 ===
-CUSTOM_CONFIG_PATH = os.path.join(BASE_DIR, "configs", "custom_config.json")
+CUSTOM_CONFIG_PATH = _find_in_candidates("configs", "custom_config.json")
 if os.path.exists(CUSTOM_CONFIG_PATH):
     import json
     with open(CUSTOM_CONFIG_PATH, "r", encoding="utf-8") as f:
@@ -183,7 +307,7 @@ SPECIAL_RENDER_OVERRIDES = {
     '：': {'scale': 0.4, 'offset_y': 0.1, 'alpha': 255, 'spacing': -20},
     '！': {'scale': 0.6, 'offset_y': 0.0, 'alpha': 255, 'spacing': -30},
     '？': {'scale': 0.6, 'offset_y': 0.0, 'alpha': 255, 'spacing': -30},
-    '\'': {'scale': 0.3, 'offset_y': 0.2, 'alpha': 200, 'spacing': -30},
+    "'": {'scale': 0.3, 'offset_y': 0.2, 'alpha': 200, 'spacing': -30},
     '"':  {'scale': 0.4, 'offset_y': -0.3, 'alpha': 200, 'spacing': -200},
 }
 
@@ -260,7 +384,7 @@ _DEFAULT_KEYS = [
 ]
 DEFAULT_SNAPSHOT = {k: globals().get(k) for k in _DEFAULT_KEYS}
 
-PRESETS_DIR = os.path.join(BASE_DIR, 'configs', 'presets')
+PRESETS_DIR = _find_in_candidates('configs', 'presets')
 os.makedirs(PRESETS_DIR, exist_ok=True)
 
 

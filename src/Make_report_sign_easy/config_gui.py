@@ -4,11 +4,6 @@ import tkinter as tk
 from tkinter import ttk
 from PIL import ImageTk, Image
 
-if __name__ == "__main__" and __package__ is None:
-    import sys
-    sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-    __package__ = "Make_report_sign_easy"
-
 from . import builder, config
 from . import auto_update
 
@@ -126,8 +121,3 @@ def main():
     auto_update.check_for_update()
     app = ConfigGUI()
     app.mainloop()
-
-
-if __name__ == "__main__":
-    main()
-

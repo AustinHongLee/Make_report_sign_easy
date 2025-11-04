@@ -25,13 +25,10 @@ handfont-fill-pdf = "Make_report_sign_easy.tools.fill_pdf_simple:main"
 handfont-fill-pdf-gui = "Make_report_sign_easy.tools.fill_pdf_gui:main"
 
 [tool.setuptools]
-package-dir = {"Make_report_sign_easy" = "."}
-# Explicitly include subpackages to make entry points work when installed
-packages = [
-    "Make_report_sign_easy",
-    "Make_report_sign_easy.tools",
-]
 include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [tool.setuptools.package-data]
 "Make_report_sign_easy" = [

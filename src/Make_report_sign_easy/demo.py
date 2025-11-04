@@ -9,11 +9,6 @@
 import os
 import argparse
 
-if __name__ == "__main__" and __package__ is None:
-    import sys
-    sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-    __package__ = "Make_report_sign_easy"
-
 # 以相對路徑匯入模組，方便直接以 `python -m 包名.demo` 執行
 from . import generate_text_image, sanitize_filename_char
 from . import auto_update

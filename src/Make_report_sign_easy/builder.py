@@ -61,7 +61,7 @@ def _apply_random_config(random_per=10):
         for k, v in original.items():
             setattr(config, k, v)
 
- 
+
 @contextmanager
 def _apply_overrides(overrides: dict | None):
     """Temporarily override selected config attributes.

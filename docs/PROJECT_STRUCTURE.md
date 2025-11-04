@@ -49,4 +49,3 @@
 - 直接執行 GUI：`python tools/fill_pdf_gui.py`
 - 已安裝後可用 entry point：`handfont-fill-pdf-gui`
 - 試玩 src 佈局：設定 `PYTHONPATH=src` 或用 `pip install -e .`。
-
