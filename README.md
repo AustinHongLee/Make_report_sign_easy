@@ -70,6 +70,26 @@ Start-Process -FilePath (Get-Command pythonw).Source -ArgumentList 'tools/fill_p
   - Windows 系統字型資料夾做備援
 Router 內如使用 `fonts/xxx.ttf` 相對路徑，會優先在外部/使用者字型資料夾中尋找，找不到再回退到專案內 `fonts/`。
 
+#### 欄位 JSON 範例
+最小可用的欄位值 JSON 範例如下（可在 GUI 的「讀取欄位」後匯入）：
+
+```json
+{
+  "Sign_words": "李宗鴻",
+  "Sign_date_words": "114.11.03",
+  "Company_words": "廣立興/岡山廠"
+}
+```
+
+完整示例請參考 `samples/values_sample.json`。
+
+#### 產出前後對照
+下圖示意相同內容在不啟用與啟用隨機化（抖動/傾斜等）時的差異：
+
+| 未啟用隨機化 | 啟用隨機化 |
+| --- | --- |
+| ![Before](docs/images/fill_before.png) | ![After](docs/images/fill_after.png) |
+
 ### 進階設定 Advanced Config
 在 `config.py` 中可調整筆劃抖動與傾斜角度，
 並透過 `PERTURB_JITTER`、`SHEAR_JITTER` 讓每個字產生些許隨機變化，
@@ -151,7 +171,7 @@ tests/            # 測試
 
 This project can be built as a Python package:
 ```bash
-python -m build
+python -m build  # 若無法執行，請先 `pip install build`
 ```
 Upload the generated wheel in `dist/` to PyPI using `twine`.
 

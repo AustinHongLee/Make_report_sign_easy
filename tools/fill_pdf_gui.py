@@ -3,7 +3,7 @@ import sys
 import io
 import json
 import tkinter as tk
-from tkinter import ttk, filedialog, messagebox
+from tkinter import ttk, filedialog, messagebox, colorchooser
 
 import fitz  # PyMuPDF
 from PIL import Image, ImageTk, ImageFilter
@@ -119,12 +119,24 @@ class PDFFillGUI(tk.Tk):
         self.pos_map = {}
         self.entries = {}
         self.random_flag = tk.BooleanVar(value=True)
+        self.show_boxes = tk.BooleanVar(value=False)  # 是否在預覽上顯示紅框
+        self.edit_boxes = tk.BooleanVar(value=False)  # 編輯紅框模式（允許點選/拖曳）
         self.global_thin_steps = tk.IntVar(value=0)   # 全域細化次數 0~3
+        self.global_thick_steps = tk.IntVar(value=0)  # 全域加粗次數 0~3
         self.global_scale = tk.DoubleVar(value=1.0)   # 全域額外縮放 0.5~1.5
         self.global_line_width = tk.IntVar(value=0)   # 全域線寬 0 表示沿用
         self.global_blur = tk.IntVar(value=0)         # 全域模糊 0 表示沿用
         self.global_config_overrides = {}             # 全域進階設定（完整 config 覆寫）
-        self.field_overrides = {}  # {key: {font, scale, thin, random, line_width, blur, config_overrides}}
+        self.nudge_step = tk.IntVar(value=2)          # 紅框微調步長（pt）
+        # {key: {font, scale, thin, thick, random, random_per, line_width, blur, color, config_overrides}}
+        self.field_overrides = {}
+        # 欄位紅框尺寸覆寫：{ key: {left:int, right:int, top:int, bottom:int} }，單位：PDF 點數
+        self.rect_overrides = {}
+        # 互動編輯狀態
+        self.active_field = None
+        self._preview_zoom = 1.5
+        self._screen_rects = {}  # {key: (x0,y0,x1,y1) in px at current zoom}
+        self._drag_state = None  # {'key','mode','start_mouse',(x,y),'start_rect','base_rect'}
         # 字型清單（供欄位覆寫使用）
         try:
             import Make_report_sign_easy.config as cfg
@@ -137,39 +149,65 @@ class PDFFillGUI(tk.Tk):
             self.fonts_dir = None
             self.fonts_list = []
 
-        # 左：欄位區；右：預覽
-        self.columnconfigure(1, weight=1)
+        # 左：欄位區；右：預覽（使用可拖曳分隔的 PanedWindow）
+        self.columnconfigure(0, weight=1)
         self.rowconfigure(1, weight=1)
 
         # 頂部工具列
         toolbar = ttk.Frame(self)
-        toolbar.grid(row=0, column=0, columnspan=2, sticky="we", padx=8, pady=8)
+        toolbar.grid(row=0, column=0, sticky="we", padx=8, pady=8)
         ttk.Button(toolbar, text="選擇 PDF", command=self.pick_pdf).pack(side="left")
         ttk.Button(toolbar, text="讀取欄位", command=self.load_fields).pack(side="left", padx=6)
         ttk.Button(toolbar, text="載入 JSON", command=self.load_values).pack(side="left")
         ttk.Button(toolbar, text="儲存 JSON", command=self.save_values).pack(side="left", padx=6)
         ttk.Checkbutton(toolbar, text="手寫隨機化", variable=self.random_flag).pack(side="left", padx=12)
+        ttk.Checkbutton(toolbar, text="顯示紅框", variable=self.show_boxes, command=self.update_preview).pack(side="left")
+        ttk.Checkbutton(toolbar, text="編輯紅框", variable=self.edit_boxes, command=self._toggle_edit_mode).pack(side="left")
+        ttk.Label(toolbar, text="步長(pt)").pack(side="left", padx=(12, 4))
+        ttk.Spinbox(toolbar, from_=1, to=20, textvariable=self.nudge_step, width=4).pack(side="left")
         ttk.Button(toolbar, text="全域設定", command=self.open_global_settings).pack(side="left")
         ttk.Button(toolbar, text="進階設定(全域)", command=self.open_advanced_global).pack(side="left", padx=6)
         ttk.Button(toolbar, text="預覽", command=self.update_preview).pack(side="left", padx=6)
         ttk.Button(toolbar, text="輸出 PDF", command=self.export_pdf).pack(side="left")
 
+        # 可調整寬度的分割視窗
+        self.panes = tk.PanedWindow(self, orient="horizontal")
+        self.panes.grid(row=1, column=0, sticky="nsew", padx=8, pady=(0, 8))
+
         # 左側：欄位輸入
-        left = ttk.LabelFrame(self, text="欄位與文字")
-        left.grid(row=1, column=0, sticky="nswe", padx=(8, 4), pady=(0, 8))
+        left = ttk.LabelFrame(self.panes, text="欄位與文字")
         left.rowconfigure(0, weight=1)
         left.columnconfigure(0, weight=1)
-
         self.fields_panel = ScrollableFields(left)
         self.fields_panel.grid(row=0, column=0, sticky="nswe")
 
         # 右側：預覽
-        right = ttk.LabelFrame(self, text="預覽（第一頁）")
-        right.grid(row=1, column=1, sticky="nswe", padx=(4, 8), pady=(0, 8))
+        right = ttk.LabelFrame(self.panes, text="預覽（第一頁）")
         right.rowconfigure(0, weight=1)
         right.columnconfigure(0, weight=1)
-        self.preview_label = ttk.Label(right)
-        self.preview_label.grid(row=0, column=0, sticky="nsew")
+        self.preview_canvas = tk.Canvas(right, bg="#f3f3f3", highlightthickness=0)
+        self.preview_canvas.grid(row=0, column=0, sticky="nsew")
+        # 畫布項目與比例
+        self._canvas_image_id = None
+        self._canvas_rect_items = {}
+        self._display_scale = 1.0
+        # 綁定互動事件（在編輯模式時才會生效）
+        self.preview_canvas.bind('<Button-1>', self._on_preview_click)
+        self.preview_canvas.bind('<B1-Motion>', self._on_preview_drag)
+        self.preview_canvas.bind('<ButtonRelease-1>', self._on_preview_release)
+        self.bind('<KeyPress>', self._on_key_press)
+
+        # 將左右加入 Pane，並設定最小寬度，預設給左側較寬以避免按鈕被擠掉
+        self.panes.add(left, minsize=380)
+        self.panes.add(right, minsize=480)
+        self.after(150, self._init_sash_position)
+
+    def _init_sash_position(self):
+        # 設定初始分隔線位置（左側約 420px），使用 try 以避免平台差異
+        try:
+            self.panes.sash_place(0, 420, 1)
+        except Exception:
+            pass
 
     def pick_pdf(self):
         path = filedialog.askopenfilename(
@@ -204,6 +242,9 @@ class PDFFillGUI(tk.Tk):
             self.entries[key] = var
             ttk.Button(self.fields_panel.interior, text="設定", command=lambda k=key: self.open_field_settings(k)).grid(
                 row=r, column=2, padx=4
+            )
+            ttk.Button(self.fields_panel.interior, text="框", command=lambda k=key: self.open_rect_adjust(k)).grid(
+                row=r, column=3, padx=2
             )
 
     def load_values(self):
@@ -250,14 +291,26 @@ class PDFFillGUI(tk.Tk):
             return
         values = {k: var.get() for k, var in self.entries.items()}
         try:
-            img = self._render_preview_with_overrides(values, zoom=1.5)
+            zoom = 1.5
+            self._preview_zoom = zoom
+            # 一律渲染完整預覽作為底圖（拖曳期間不會重算，只更新 Canvas 上的紅框）
+            img = self._render_preview_with_overrides(values, zoom=zoom)
             # 將圖縮到視窗適配
             max_w, max_h = 800, 1000
-            scale = min(max_w / img.width, max_h / img.height, 1.0)
-            if scale < 1.0:
-                img = img.resize((int(img.width * scale), int(img.height * scale)), Image.LANCZOS)
+            disp_scale = min(max_w / img.width, max_h / img.height, 1.0)
+            self._display_scale = disp_scale
+            if disp_scale < 1.0:
+                img = img.resize((int(img.width * disp_scale), int(img.height * disp_scale)), Image.LANCZOS)
             self._tk_img = ImageTk.PhotoImage(img)
-            self.preview_label.configure(image=self._tk_img)
+            if self._canvas_image_id is None:
+                self._canvas_image_id = self.preview_canvas.create_image(0, 0, anchor='nw', image=self._tk_img)
+            else:
+                self.preview_canvas.itemconfig(self._canvas_image_id, image=self._tk_img)
+            # 調整畫布大小
+            self.preview_canvas.configure(width=img.width, height=img.height)
+            # 更新螢幕座標並重畫紅框
+            self._recompute_screen_rects()
+            self._redraw_canvas_rectangles()
         except Exception as e:
             messagebox.showerror("預覽失敗", str(e))
 
@@ -296,11 +349,13 @@ class PDFFillGUI(tk.Tk):
                     rect = self.pos_map.get(key)
                 if rect is None:
                     continue
+                # 套用紅框覆寫
+                rect = self._apply_rect_override(key, rect)
                 img = self._generate_image_with_overrides(key, str(text))
                 if img:
                     # 套用欄位/全域縮放
                     scale_mult = self.field_overrides.get(key, {}).get('scale', 1.0) * self.global_scale.get()
-                    img = self._apply_thinning_if_needed(key, img)
+                    img = self._apply_thickness_if_needed(key, img)
                     self._paste_image_scaled(page, rect, img, scale_mult)
             doc.save(out_path, garbage=4, deflate=True)
             doc.close()
@@ -314,20 +369,22 @@ class PDFFillGUI(tk.Tk):
         win.title("全域設定")
         ttk.Label(win, text="線條細化 (0~3)：").grid(row=0, column=0, sticky='w', padx=8, pady=8)
         ttk.Spinbox(win, from_=0, to=3, textvariable=self.global_thin_steps, width=5).grid(row=0, column=1, padx=8)
-        ttk.Label(win, text="額外縮放 (50%~150%)：").grid(row=1, column=0, sticky='w', padx=8, pady=8)
+        ttk.Label(win, text="線條加粗 (0~3)：").grid(row=1, column=0, sticky='w', padx=8, pady=8)
+        ttk.Spinbox(win, from_=0, to=3, textvariable=self.global_thick_steps, width=5).grid(row=1, column=1, padx=8)
+        ttk.Label(win, text="額外縮放 (50%~150%)：").grid(row=2, column=0, sticky='w', padx=8, pady=8)
         scale_var = tk.DoubleVar(value=self.global_scale.get() * 100)
         def _apply_global():
             self.global_scale.set(max(0.5, min(1.5, scale_var.get()/100)))
             # 全域線寬/模糊無需轉換，直接保留 IntVar 值（0=沿用）
             win.destroy()
-        ttk.Spinbox(win, from_=50, to=150, textvariable=scale_var, width=6).grid(row=1, column=1, padx=8)
+        ttk.Spinbox(win, from_=50, to=150, textvariable=scale_var, width=6).grid(row=2, column=1, padx=8)
         # 全域線寬
-        ttk.Label(win, text="全域線寬 (0=沿用,1~5)：").grid(row=2, column=0, sticky='w', padx=8, pady=8)
-        ttk.Spinbox(win, from_=0, to=5, textvariable=self.global_line_width, width=5).grid(row=2, column=1, padx=8)
+        ttk.Label(win, text="全域線寬 (0=沿用,1~5)：").grid(row=3, column=0, sticky='w', padx=8, pady=8)
+        ttk.Spinbox(win, from_=0, to=5, textvariable=self.global_line_width, width=5).grid(row=3, column=1, padx=8)
         # 全域模糊
-        ttk.Label(win, text="全域模糊 (0=沿用,0~6)：").grid(row=3, column=0, sticky='w', padx=8, pady=8)
-        ttk.Spinbox(win, from_=0, to=6, textvariable=self.global_blur, width=5).grid(row=3, column=1, padx=8)
-        ttk.Button(win, text="套用", command=_apply_global).grid(row=4, column=0, columnspan=2, pady=10)
+        ttk.Label(win, text="全域模糊 (0=沿用,0~6)：").grid(row=4, column=0, sticky='w', padx=8, pady=8)
+        ttk.Spinbox(win, from_=0, to=6, textvariable=self.global_blur, width=5).grid(row=4, column=1, padx=8)
+        ttk.Button(win, text="套用", command=_apply_global).grid(row=5, column=0, columnspan=2, pady=10)
 
     def open_field_settings(self, key):
         win = tk.Toplevel(self)
@@ -339,31 +396,60 @@ class PDFFillGUI(tk.Tk):
         ttk.Label(win, text="字型 (可選)：").grid(row=0, column=0, sticky='w', padx=8, pady=6)
         font_var = tk.StringVar(value=ov.get('font', ''))
         values = [''] + self.fonts_list if self.fonts_list else ['']
-        font_cb = ttk.Combobox(win, textvariable=font_var, values=values, state='readonly')
-        font_cb.grid(row=0, column=1, padx=8, pady=6)
+        ttk.Combobox(win, textvariable=font_var, values=values, state='readonly').grid(row=0, column=1, padx=8, pady=6)
         # 縮放
         ttk.Label(win, text="額外縮放 (50%~150%)：").grid(row=1, column=0, sticky='w', padx=8, pady=6)
         scale_var = tk.DoubleVar(value=(ov.get('scale', 1.0) * 100))
         ttk.Spinbox(win, from_=50, to=150, textvariable=scale_var, width=6).grid(row=1, column=1, padx=8)
-        # 細化
+        # 細化/加粗
         ttk.Label(win, text="線條細化 (0~3)：").grid(row=2, column=0, sticky='w', padx=8, pady=6)
         thin_var = tk.IntVar(value=ov.get('thin', 0))
         ttk.Spinbox(win, from_=0, to=3, textvariable=thin_var, width=5).grid(row=2, column=1, padx=8)
+        ttk.Label(win, text="線條加粗 (0~3)：").grid(row=3, column=0, sticky='w', padx=8, pady=6)
+        thick_var = tk.IntVar(value=ov.get('thick', 0))
+        ttk.Spinbox(win, from_=0, to=3, textvariable=thick_var, width=5).grid(row=3, column=1, padx=8)
         # 線寬（直接影響描邊寬度）
-        ttk.Label(win, text="線寬 (1~5)：").grid(row=3, column=0, sticky='w', padx=8, pady=6)
+        ttk.Label(win, text="線寬 (1~5)：").grid(row=4, column=0, sticky='w', padx=8, pady=6)
         lw_var = tk.IntVar(value=ov.get('line_width', 0) or 0)
-        ttk.Spinbox(win, from_=0, to=5, textvariable=lw_var, width=5).grid(row=3, column=1, padx=8)
-        ttk.Label(win, text="(0 表示沿用全域/預設)").grid(row=3, column=2, sticky='w')
+        ttk.Spinbox(win, from_=0, to=5, textvariable=lw_var, width=5).grid(row=4, column=1, padx=8)
+        ttk.Label(win, text="(0 表示沿用全域/預設)").grid(row=4, column=2, sticky='w')
         # 模糊（影響整體柔化程度）
-        ttk.Label(win, text="模糊 (0~6)：").grid(row=4, column=0, sticky='w', padx=8, pady=6)
+        ttk.Label(win, text="模糊 (0~6)：").grid(row=5, column=0, sticky='w', padx=8, pady=6)
         blur_var = tk.IntVar(value=ov.get('blur', 0) or 0)
-        ttk.Spinbox(win, from_=0, to=6, textvariable=blur_var, width=5).grid(row=4, column=1, padx=8)
-        # 隨機
-        ttk.Label(win, text="手寫隨機化覆寫：").grid(row=5, column=0, sticky='w', padx=8, pady=6)
+        ttk.Spinbox(win, from_=0, to=6, textvariable=blur_var, width=5).grid(row=5, column=1, padx=8)
+        # 顫抖/傾斜/隨機幅度
+        ttk.Label(win, text="顫抖(0~15)：").grid(row=6, column=0, sticky='w', padx=8, pady=6)
+        perturb_var = tk.IntVar(value=ov.get('perturb', 0))
+        ttk.Spinbox(win, from_=0, to=15, textvariable=perturb_var, width=5).grid(row=6, column=1, padx=8)
+        ttk.Label(win, text="傾斜角(-20~20)：").grid(row=7, column=0, sticky='w', padx=8, pady=6)
+        shear_var = tk.IntVar(value=ov.get('shear', 0))
+        ttk.Spinbox(win, from_=-20, to=20, textvariable=shear_var, width=6).grid(row=7, column=1, padx=8)
+        ttk.Label(win, text="隨機幅度%(0~30)：").grid(row=8, column=0, sticky='w', padx=8, pady=6)
+        randper_var = tk.IntVar(value=ov.get('random_per', 10))
+        ttk.Spinbox(win, from_=0, to=30, textvariable=randper_var, width=6).grid(row=8, column=1, padx=8)
+        # 隨機開關
+        ttk.Label(win, text="手寫隨機化覆寫：").grid(row=9, column=0, sticky='w', padx=8, pady=6)
         rand_state = tk.StringVar(value={True: 'on', False: 'off', None: 'inherit'}.get(ov.get('random', None), 'inherit'))
-        ttk.Combobox(win, textvariable=rand_state, values=['inherit', 'on', 'off'], state='readonly').grid(row=5, column=1, padx=8)
+        ttk.Combobox(win, textvariable=rand_state, values=['inherit', 'on', 'off'], state='readonly').grid(row=9, column=1, padx=8)
+        # 顏色
+        ttk.Label(win, text="筆跡顏色(RGB)：").grid(row=10, column=0, sticky='w', padx=8, pady=6)
+        color_preview = tk.Label(win, text=str(ov.get('color') or ''), width=16, anchor='w')
+        color_preview.grid(row=10, column=1, sticky='w', padx=8)
+        def _pick_color():
+            init = '#4169e1'
+            if isinstance(ov.get('color'), (list, tuple)) and len(ov.get('color'))==3:
+                init = '#%02x%02x%02x' % tuple(max(0,min(255,int(x))) for x in ov['color'])
+            c = colorchooser.askcolor(color=init, title='選擇筆跡顏色')
+            if c and c[0]:
+                rgb = tuple(int(round(x)) for x in c[0])
+                color_preview.config(text=str(rgb))
+        ttk.Button(win, text="選色…", command=_pick_color).grid(row=10, column=2, padx=6)
+        # 樣式預設
+        ttk.Label(win, text="樣式預設：").grid(row=11, column=0, sticky='w', padx=8, pady=6)
+        preset_var = tk.StringVar(value='inherit')
+        ttk.Combobox(win, textvariable=preset_var, values=['inherit','工整細緻','日常手寫','粗獷隨性'], state='readonly').grid(row=11, column=1, padx=8)
         # 進階設定（完整 config 覆寫）
-        ttk.Button(win, text="進階…", command=lambda: self.open_advanced_field(key, parent=win)).grid(row=6, column=0, padx=8, pady=8, sticky='w')
+        ttk.Button(win, text="進階…", command=lambda: self.open_advanced_field(key, parent=win)).grid(row=12, column=0, padx=8, pady=8, sticky='w')
 
         def _save():
             new_ov = {}
@@ -376,33 +462,70 @@ class PDFFillGUI(tk.Tk):
             tv = max(0, min(3, thin_var.get()))
             if tv:
                 new_ov['thin'] = tv
+            thv = max(0, min(3, thick_var.get()))
+            if thv:
+                new_ov['thick'] = thv
             lw = max(0, min(5, int(lw_var.get())))
             if lw:
                 new_ov['line_width'] = lw
             bl = max(0, min(6, int(blur_var.get())))
             if bl:
                 new_ov['blur'] = bl
+            pv = max(0, min(15, int(perturb_var.get())))
+            if pv:
+                new_ov['perturb'] = pv
+            sh = max(-20, min(20, int(shear_var.get())))
+            if sh:
+                new_ov['shear'] = sh
+            rp = max(0, min(30, int(randper_var.get())))
+            if rp != 10:
+                new_ov['random_per'] = rp
             rv = rand_state.get()
             if rv != 'inherit':
                 new_ov['random'] = (rv == 'on')
+            # 顏色
+            if color_preview.cget('text'):
+                try:
+                    t = eval(color_preview.cget('text'))
+                    if isinstance(t, (list, tuple)) and len(t)==3:
+                        new_ov['color'] = tuple(int(max(0,min(255,int(x)))) for x in t)
+                except Exception:
+                    pass
+            # 樣式預設合併
+            def _preset_overrides(name:str):
+                if name=='工整細緻':
+                    return {'PERTURB':6,'SHEAR_ANGLE':10,'BLUR_AMOUNT':1.5,'LINE_WIDTH':1,'COLOR_VARIATION':10}
+                if name=='日常手寫':
+                    return {'PERTURB':12,'SHEAR_ANGLE':20,'BLUR_AMOUNT':1.8,'LINE_WIDTH':1,'COLOR_VARIATION':20}
+                if name=='粗獷隨性':
+                    return {'PERTURB':15,'SHEAR_ANGLE':22,'BLUR_AMOUNT':2.5,'LINE_WIDTH':2,'COLOR_VARIATION':40}
+                return {}
+            preset_name = preset_var.get()
+            if preset_name and preset_name!='inherit':
+                new_ov.setdefault('config_overrides', {})
+                new_ov['config_overrides'].update(_preset_overrides(preset_name))
             # 保留既有的進階覆寫
             if 'config_overrides' in ov and isinstance(ov['config_overrides'], dict):
-                new_ov['config_overrides'] = ov['config_overrides']
+                new_ov['config_overrides'] = {**ov['config_overrides'], **new_ov.get('config_overrides', {})}
             self.field_overrides[key] = new_ov
             win.destroy()
-        ttk.Button(win, text="儲存", command=_save).grid(row=7, column=0, columnspan=2, pady=10)
+        ttk.Button(win, text="儲存", command=_save).grid(row=13, column=0, columnspan=2, pady=10)
 
     # ====== 內部工具 ======
-    def _apply_thinning_if_needed(self, key, img):
-        steps = self.global_thin_steps.get() + int(self.field_overrides.get(key, {}).get('thin', 0))
-        if steps <= 0:
+    def _apply_thickness_if_needed(self, key, img):
+        thin = self.global_thin_steps.get() + int(self.field_overrides.get(key, {}).get('thin', 0))
+        thick = self.global_thick_steps.get() + int(self.field_overrides.get(key, {}).get('thick', 0))
+        net = max(-3, min(3, int(thick) - int(thin)))
+        if net == 0:
             return img
-        steps = min(3, max(0, steps))
         r, g, b, a = img.split()
-        for _ in range(steps):
-            a = a.filter(ImageFilter.MinFilter(3))
-        out = Image.merge('RGBA', (r, g, b, a))
-        return out
+        if net > 0:
+            for _ in range(net):
+                a = a.filter(ImageFilter.MaxFilter(3))
+        else:
+            for _ in range(-net):
+                a = a.filter(ImageFilter.MinFilter(3))
+        return Image.merge('RGBA', (r, g, b, a))
 
     def _generate_image_with_overrides(self, key, text):
         ov = self.field_overrides.get(key, {})
@@ -423,10 +546,19 @@ class PDFFillGUI(tk.Tk):
             overrides['LINE_WIDTH'] = int(ov['line_width'])
         if ov.get('blur') is not None and ov.get('blur') != 0:
             overrides['BLUR_AMOUNT'] = int(ov['blur'])
+        if ov.get('perturb') is not None and ov.get('perturb') != 0:
+            overrides['PERTURB'] = int(ov['perturb'])
+        if ov.get('shear') is not None and ov.get('shear') != 0:
+            overrides['SHEAR_ANGLE'] = int(ov['shear'])
+        if ov.get('color'):
+            c = ov['color']
+            if isinstance(c, (list, tuple)) and len(c)==3:
+                overrides['COLOR_BASE'] = tuple(int(max(0,min(255,int(x)))) for x in c)
         # 欄位進階覆寫（完整集）
         if ov.get('config_overrides'):
             overrides.update(ov['config_overrides'])
-        img = generate_text_image(text, font_path=font_path, random=use_random, overrides=overrides or None)
+        rp = int(ov.get('random_per', 10)) if ov.get('random_per') is not None else 10
+        img = generate_text_image(text, font_path=font_path, random=use_random, random_per=rp, overrides=overrides or None)
         return img
 
     # ====== 高階設定視窗 ======
@@ -488,6 +620,7 @@ class PDFFillGUI(tk.Tk):
         mat = fitz.Matrix(zoom, zoom)
         pix = page.get_pixmap(matrix=mat, alpha=False)
         base = Image.frombytes("RGB", [pix.width, pix.height], pix.samples).convert('RGBA')
+        self._screen_rects = {}
         # 疊各欄位
         for key, text in values.items():
             # 找 rect
@@ -502,11 +635,12 @@ class PDFFillGUI(tk.Tk):
                 rect = self.pos_map.get(key)
             if rect is None:
                 continue
+            rect = self._apply_rect_override(key, rect)
             img = self._generate_image_with_overrides(key, str(text))
             if not img:
                 continue
             # 細化與縮放
-            img = self._apply_thinning_if_needed(key, img)
+            img = self._apply_thickness_if_needed(key, img)
             scale_mult = self.field_overrides.get(key, {}).get('scale', 1.0) * self.global_scale.get()
             img_w, img_h = img.size
             rect_w = rect.width * zoom
@@ -520,6 +654,341 @@ class PDFFillGUI(tk.Tk):
             base.alpha_composite(imgr, dest=(x0, y0))
         doc.close()
         return base
+
+    def _render_base_page(self, zoom=1.5):
+        doc = fitz.open(self.pdf_path)
+        page = doc[0]
+        pix = page.get_pixmap(matrix=fitz.Matrix(zoom, zoom), alpha=False)
+        base = Image.frombytes("RGB", [pix.width, pix.height], pix.samples).convert('RGBA')
+        doc.close()
+        return base
+
+    def _recompute_screen_rects(self):
+        # 根據 pos_map 與覆寫，計算目前畫面座標（考慮 zoom 與 display_scale）
+        z = self._preview_zoom or 1.5
+        s = self._display_scale or 1.0
+        rects = {}
+        for key, rect in self.pos_map.items():
+            if rect is None:
+                continue
+            r = self._apply_rect_override(key, rect)
+            x0 = int(r.x0 * z * s)
+            y0 = int(r.y0 * z * s)
+            x1 = int(r.x1 * z * s)
+            y1 = int(r.y1 * z * s)
+            rects[key] = (x0, y0, x1, y1)
+        self._screen_rects = rects
+
+    def _redraw_canvas_rectangles(self):
+        # 無需顯示時清空
+        if not (self.show_boxes.get() or self.edit_boxes.get()):
+            self._clear_canvas_rectangles()
+            return
+        # 更新或建立每個矩形
+        existing_keys = set(self._canvas_rect_items.keys())
+        for key, coords in self._screen_rects.items():
+            color = '#ff4040' if key == self.active_field else '#ff0000'
+            width = 3 if key == self.active_field else 2
+            if key in self._canvas_rect_items:
+                rid = self._canvas_rect_items[key]
+                self.preview_canvas.coords(rid, *coords)
+                self.preview_canvas.itemconfig(rid, outline=color, width=width)
+            else:
+                rid = self.preview_canvas.create_rectangle(*coords, outline=color, width=width)
+                self._canvas_rect_items[key] = rid
+        # 刪除多餘項
+        for k in list(existing_keys - set(self._screen_rects.keys())):
+            try:
+                self.preview_canvas.delete(self._canvas_rect_items[k])
+            except Exception:
+                pass
+            self._canvas_rect_items.pop(k, None)
+
+    def _clear_canvas_rectangles(self):
+        for rid in self._canvas_rect_items.values():
+            try:
+                self.preview_canvas.delete(rid)
+            except Exception:
+                pass
+        self._canvas_rect_items.clear()
+
+    def _get_screen_rect_for_key(self, key):
+        z = self._preview_zoom or 1.5
+        s = self._display_scale or 1.0
+        base_rect = self._get_base_rect_for_key(key) or self.pos_map.get(key)
+        if base_rect is None:
+            return None
+        r = self._apply_rect_override(key, base_rect)
+        return (int(r.x0 * z * s), int(r.y0 * z * s), int(r.x1 * z * s), int(r.y1 * z * s))
+
+    def _update_canvas_rect_for_key(self, key):
+        coords = self._get_screen_rect_for_key(key)
+        if not coords:
+            return
+        self._screen_rects[key] = coords
+        color = '#ff4040' if key == self.active_field else '#ff0000'
+        width = 3 if key == self.active_field else 2
+        if key in self._canvas_rect_items:
+            rid = self._canvas_rect_items[key]
+            self.preview_canvas.coords(rid, *coords)
+            self.preview_canvas.itemconfig(rid, outline=color, width=width)
+        else:
+            rid = self.preview_canvas.create_rectangle(*coords, outline=color, width=width)
+            self._canvas_rect_items[key] = rid
+
+    # ====== 預覽互動：選取/拖曳/鍵盤微調 ======
+    def _toggle_edit_mode(self):
+        # 清理拖曳狀態並更新預覽
+        self._drag_state = None
+        self.update_preview()
+
+    def _hit_test(self, x, y):
+        # 回傳 (key, mode, edges)；mode 為 'move' 或 'resize'，edges 例如 ('left','top')
+        # 優先檢測邊/角，再檢測內部
+        threshold = 8
+        for key, (x0, y0, x1, y1) in self._screen_rects.items():
+            # 邊界檢測
+            near_left = abs(x - x0) <= threshold and y0 - threshold <= y <= y1 + threshold
+            near_right = abs(x - x1) <= threshold and y0 - threshold <= y <= y1 + threshold
+            near_top = abs(y - y0) <= threshold and x0 - threshold <= x <= x1 + threshold
+            near_bottom = abs(y - y1) <= threshold and x0 - threshold <= x <= x1 + threshold
+            edges = []
+            if near_left:
+                edges.append('left')
+            if near_right:
+                edges.append('right')
+            if near_top:
+                edges.append('top')
+            if near_bottom:
+                edges.append('bottom')
+            if edges:
+                return key, 'resize', tuple(edges)
+            # 內部
+            if x0 <= x <= x1 and y0 <= y <= y1:
+                return key, 'move', ()
+        return None, None, None
+
+    def _on_preview_click(self, event):
+        if not self.edit_boxes.get():
+            return
+        key, mode, edges = self._hit_test(event.x, event.y)
+        if not key:
+            self.active_field = None
+            self._drag_state = None
+            self._redraw_canvas_rectangles()
+            return
+        self.active_field = key
+        # 記錄起始狀態
+        base_rect = self._get_base_rect_for_key(key)
+        start_rect = self._apply_rect_override(key, base_rect)
+        self._drag_state = {
+            'key': key,
+            'mode': mode or 'move',
+            'edges': edges or (),
+            'start_mouse': (event.x, event.y),
+            'start_rect': start_rect,
+            'base_rect': base_rect,
+        }
+        self._redraw_canvas_rectangles()
+
+    def _on_preview_drag(self, event):
+        if not self.edit_boxes.get() or not self._drag_state:
+            return
+        ds = self._drag_state
+        key = ds['key']
+        zoom = self._preview_zoom or 1.5
+        disp = self._display_scale or 1.0
+        dx_px = event.x - ds['start_mouse'][0]
+        dy_px = event.y - ds['start_mouse'][1]
+        dx = dx_px / (zoom * disp)
+        dy = dy_px / (zoom * disp)
+        new_rect = fitz.Rect(ds['start_rect'])
+        if ds['mode'] == 'move':
+            new_rect.x0 += dx
+            new_rect.x1 += dx
+            new_rect.y0 += dy
+            new_rect.y1 += dy
+        else:
+            # resize by edges
+            if 'left' in ds['edges']:
+                new_rect.x0 += dx
+            if 'right' in ds['edges']:
+                new_rect.x1 += dx
+            if 'top' in ds['edges']:
+                new_rect.y0 += dy
+            if 'bottom' in ds['edges']:
+                new_rect.y1 += dy
+        # 轉成 overrides 並套用，並更新單一矩形外觀
+        ov = self._overrides_from_rect(ds['base_rect'], new_rect)
+        self.rect_overrides[key] = ov
+        self._update_canvas_rect_for_key(key)
+
+    def _on_preview_release(self, event):
+        if not self.edit_boxes.get():
+            return
+        self._drag_state = None
+
+    def _on_key_press(self, event):
+        if not self.edit_boxes.get() or not self.active_field:
+            return
+        step = int(self.nudge_step.get() or 2)  # 預設每次 2pt，可在工具列調整
+        key = self.active_field
+        base_rect = self._get_base_rect_for_key(key)
+        cur_rect = self._apply_rect_override(key, base_rect)
+        resize = (event.state & 0x0004) != 0  # Ctrl 進行 resize，否則 move
+        if event.keysym in ('Left', 'Right', 'Up', 'Down'):
+            dx = (-step if event.keysym == 'Left' else step if event.keysym == 'Right' else 0)
+            dy = (-step if event.keysym == 'Up' else step if event.keysym == 'Down' else 0)
+            new_rect = fitz.Rect(cur_rect)
+            if not resize:
+                new_rect.x0 += dx
+                new_rect.x1 += dx
+                new_rect.y0 += dy
+                new_rect.y1 += dy
+            else:
+                # Ctrl+Arrow：只改一個對應邊
+                if event.keysym == 'Left':
+                    new_rect.x0 += dx
+                elif event.keysym == 'Right':
+                    new_rect.x1 += dx
+                elif event.keysym == 'Up':
+                    new_rect.y0 += dy
+                elif event.keysym == 'Down':
+                    new_rect.y1 += dy
+            self.rect_overrides[key] = self._overrides_from_rect(base_rect, new_rect)
+            self._update_canvas_rect_for_key(key)
+
+    def _get_base_rect_for_key(self, key):
+        # 從 PDF 註解或 pos_map 取得原始 rect
+        if self.pdf_path:
+            try:
+                doc = fitz.open(self.pdf_path)
+                page = doc[0]
+                for annot in page.annots() or []:
+                    if annot.type[1] == "FreeText" and annot.info.get("content", "").strip() == key:
+                        r = fitz.Rect(annot.rect)
+                        doc.close()
+                        return r
+                doc.close()
+            except Exception:
+                pass
+        return self.pos_map.get(key)
+
+    def _overrides_from_rect(self, base_rect, new_rect):
+        # 根據 base_rect 與 new_rect 計算四邊覆寫值（對應 _apply_rect_override 的反向）
+        if base_rect is None or new_rect is None:
+            return {'left': 0, 'right': 0, 'top': 0, 'bottom': 0}
+        left = base_rect.x0 - new_rect.x0
+        right = new_rect.x1 - base_rect.x1
+        top = base_rect.y0 - new_rect.y0
+        bottom = new_rect.y1 - base_rect.y1
+        return {
+            'left': int(round(left)),
+            'right': int(round(right)),
+            'top': int(round(top)),
+            'bottom': int(round(bottom)),
+        }
+
+    # ====== 紅框覆寫 ======
+    def open_rect_adjust(self, key):
+        # 提供以 PDF 點數調整四邊的對話框
+        win = tk.Toplevel(self)
+        win.title(f"調整紅框 - {key}")
+        # 取得原始 rect
+        base_rect = self.pos_map.get(key)
+        if base_rect is None:
+            # 嘗試從 PDF 中再找一次（避免使用者先載入後動過）
+            try:
+                if self.pdf_path:
+                    doc = fitz.open(self.pdf_path)
+                    page = doc[0]
+                    for annot in page.annots() or []:
+                        if annot.type[1] == "FreeText" and annot.info.get("content", "").strip() == key:
+                            base_rect = fitz.Rect(annot.rect)
+                            break
+                    doc.close()
+            except Exception:
+                base_rect = None
+        if base_rect is None:
+            ttk.Label(win, text="找不到原始紅框，請先讀取欄位").grid(row=0, column=0, padx=10, pady=10)
+            return
+
+        ov = self.rect_overrides.get(key, {})
+        left_var = tk.IntVar(value=int(ov.get('left', 0)))
+        right_var = tk.IntVar(value=int(ov.get('right', 0)))
+        top_var = tk.IntVar(value=int(ov.get('top', 0)))
+        bottom_var = tk.IntVar(value=int(ov.get('bottom', 0)))
+
+        # 顯示目前尺寸資訊
+        info = ttk.Label(win, text=f"原始尺寸: {int(base_rect.width)}x{int(base_rect.height)} pt")
+        info.grid(row=0, column=0, columnspan=3, sticky='w', padx=10, pady=8)
+
+        ttk.Label(win, text="左(+擴大/−縮小)").grid(row=1, column=0, sticky='e', padx=8, pady=6)
+        ttk.Spinbox(win, from_=-100, to=100, textvariable=left_var, width=6).grid(row=1, column=1, padx=8)
+        ttk.Label(win, text="pt").grid(row=1, column=2, sticky='w')
+
+        ttk.Label(win, text="右(+擴大/−縮小)").grid(row=2, column=0, sticky='e', padx=8, pady=6)
+        ttk.Spinbox(win, from_=-100, to=100, textvariable=right_var, width=6).grid(row=2, column=1, padx=8)
+        ttk.Label(win, text="pt").grid(row=2, column=2, sticky='w')
+
+        ttk.Label(win, text="上(+擴大/−縮小)").grid(row=3, column=0, sticky='e', padx=8, pady=6)
+        ttk.Spinbox(win, from_=-100, to=100, textvariable=top_var, width=6).grid(row=3, column=1, padx=8)
+        ttk.Label(win, text="pt").grid(row=3, column=2, sticky='w')
+
+        ttk.Label(win, text="下(+擴大/−縮小)").grid(row=4, column=0, sticky='e', padx=8, pady=6)
+        ttk.Spinbox(win, from_=-100, to=100, textvariable=bottom_var, width=6).grid(row=4, column=1, padx=8)
+        ttk.Label(win, text="pt").grid(row=4, column=2, sticky='w')
+
+        def _apply():
+            ov = {
+                'left': int(left_var.get()),
+                'right': int(right_var.get()),
+                'top': int(top_var.get()),
+                'bottom': int(bottom_var.get()),
+            }
+            self.rect_overrides[key] = ov
+            self.update_preview()
+            win.destroy()
+
+        def _reset():
+            if key in self.rect_overrides:
+                del self.rect_overrides[key]
+            self.update_preview()
+            win.destroy()
+
+        btns = ttk.Frame(win)
+        btns.grid(row=5, column=0, columnspan=3, pady=10)
+        ttk.Button(btns, text="套用", command=_apply).pack(side='left', padx=6)
+        ttk.Button(btns, text="重設", command=_reset).pack(side='left', padx=6)
+        ttk.Button(btns, text="關閉", command=win.destroy).pack(side='left', padx=6)
+
+    def _apply_rect_override(self, key, rect):
+        """將 rect 依欄位的覆寫（左右上下延伸/縮小，單位 pt）調整後回傳新 rect。"""
+        if rect is None:
+            return None
+        ov = self.rect_overrides.get(key)
+        if not ov:
+            return rect
+        try:
+            left = int(ov.get('left', 0))
+            right = int(ov.get('right', 0))
+            top = int(ov.get('top', 0))
+            bottom = int(ov.get('bottom', 0))
+        except Exception:
+            return rect
+        # 注意：左/上為負向座標方向（向左/上擴大），因此 x0 減 left, y0 減 top
+        new_rect = fitz.Rect(rect.x0 - left, rect.y0 - top, rect.x1 + right, rect.y1 + bottom)
+        # 確保最小尺寸
+        min_size = 1.0
+        if new_rect.width < min_size:
+            cx = (rect.x0 + rect.x1) / 2.0
+            new_rect.x0 = cx - min_size / 2.0
+            new_rect.x1 = cx + min_size / 2.0
+        if new_rect.height < min_size:
+            cy = (rect.y0 + rect.y1) / 2.0
+            new_rect.y0 = cy - min_size / 2.0
+            new_rect.y1 = cy + min_size / 2.0
+        return new_rect
 
 
 def main():
