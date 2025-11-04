@@ -11,17 +11,38 @@ HandFont 是一套模擬手寫風格的文字渲染工具，能在電腦上產�
 HandFont is a handwriting-style renderer for Chinese characters, Latin letters and symbols. It simulates realistic jitter, pen pressure and ink effects. Each character can be routed to its own font file, allowing fine‑grained control over appearance. Parameters are configurable and the community is encouraged to contribute font routes to improve the overall handwriting feel.
 
 ## 安裝 Installation
-```bash
-pip install pillow fonttools
-# 下載本專案
-git clone https://github.com/AustinHongLee/Make_report_sign_easy.git
-cd Make_report_sign_easy
-# 安裝依賴與套件（可選）
-# Linux/macOS:
-bash scripts/setup.sh
-# Windows:
-scripts\install.bat
-```
+安裝方式有兩種：直接用原始碼開發（推薦）或安裝為套件。
+
+- 下載專案並安裝相依套件：
+  - Linux/macOS (bash/zsh)：
+    ```bash
+    git clone https://github.com/AustinHongLee/Make_report_sign_easy.git
+    cd Make_report_sign_easy
+    pip install -r requirements.txt
+    ```
+  - Windows (PowerShell)：
+    ```powershell
+    git clone https://github.com/AustinHongLee/Make_report_sign_easy.git
+    Set-Location Make_report_sign_easy
+    pip install -r requirements.txt
+    ```
+- 選擇性：以可編輯模式安裝本套件，方便開發時即時生效：
+  ```bash
+  pip install -e .
+  ```
+
+字型來源建議使用外部資料夾以降低套件體積：
+- 設定環境變數 MRSE_FONTS_DIR → 指到你的字型資料夾
+  - Windows (PowerShell)：
+    ```powershell
+    $env:MRSE_FONTS_DIR = "C:\fonts\handwriting"  # 本次工作階段有效
+    # 如需永久設定，建議透過 系統環境變數 -> 使用者變數 新增 MRSE_FONTS_DIR
+    ```
+  - Linux/macOS (bash)：
+    ```bash
+    export MRSE_FONTS_DIR=~/fonts/handwriting
+    ```
+若未設定，程式會依序尋找：使用者資料夾字型 → 內建字型 →（Windows）系統字型。
 
 ## 快速使用 Quick Start
 ```python
