@@ -30,16 +30,23 @@ def get_spacing(ch, size=None):
     """
     if ch == ' ':
         base = int((size or config.IMAGE_SIZE) * 0.5)
-    elif ch in config.SPECIAL_RENDER_OVERRIDES:
-        base = config.SPECIAL_RENDER_OVERRIDES[ch].get("spacing", -5)
-    elif '\u4e00' <= ch <= '\u9fff':
-        base = 5
-    elif ch.isdigit():
-        base = -80
-    elif ch.isalpha():
-        base = -60
     else:
-        base = 10
+        # 會話層 spacing 優先（若有設定值）
+        session_spacing = (
+            (config.SESSION_RENDER_OVERRIDES or {}).get("spacing")
+        )
+        if session_spacing is not None:
+            base = int(session_spacing)
+        elif ch in config.SPECIAL_RENDER_OVERRIDES:
+            base = config.SPECIAL_RENDER_OVERRIDES[ch].get("spacing", -5)
+        elif '\u4e00' <= ch <= '\u9fff':
+            base = 5
+        elif ch.isdigit():
+            base = -80
+        elif ch.isalpha():
+            base = -60
+        else:
+            base = 10
     return base + config.CHAR_SPACING_OFFSET
 
 
@@ -54,6 +61,13 @@ def varied_color(base, variation=0, alpha=255):
     """
     ✅ 模擬筆壓或墨水深淺的隨機色
     """
-    return tuple(
-        min(255, max(0, base[i] + random.randint(-variation, variation))) for i in range(3)
-    ) + (alpha,)
+    return (
+        tuple(
+            min(
+                255,
+                max(0, base[i] + random.randint(-variation, variation)),
+            )
+            for i in range(3)
+        )
+        + (alpha,)
+    )

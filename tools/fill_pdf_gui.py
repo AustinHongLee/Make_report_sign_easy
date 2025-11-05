@@ -4,6 +4,7 @@ import io
 import json
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, colorchooser
+import customtkinter as ctk
 
 import fitz  # PyMuPDF
 from PIL import Image, ImageTk, ImageFilter
@@ -128,6 +129,13 @@ class PDFFillGUI(tk.Tk):
         self.global_blur = tk.IntVar(value=0)         # 全域模糊 0 表示沿用
         self.global_config_overrides = {}             # 全域進階設定（完整 config 覆寫）
         self.nudge_step = tk.IntVar(value=2)          # 紅框微調步長（pt）
+        # 本次（會話層）單字視覺覆寫：{'scale':float,'offset_y':float,'alpha':int,'spacing':int}
+        self.session_char_overrides = {}
+        # 篩選器（層級開關）：單字 / 句子 / 欄位 / 報告
+        self.use_char_filter = tk.BooleanVar(value=True)
+        self.use_sentence_filter = tk.BooleanVar(value=True)
+        self.use_field_filter = tk.BooleanVar(value=True)
+        self.use_report_filter = tk.BooleanVar(value=True)
         # {key: {font, scale, thin, thick, random, random_per, line_width, blur, color, config_overrides}}
         self.field_overrides = {}
         # 欄位紅框尺寸覆寫：{ key: {left:int, right:int, top:int, bottom:int} }，單位：PDF 點數
@@ -153,7 +161,7 @@ class PDFFillGUI(tk.Tk):
         self.columnconfigure(0, weight=1)
         self.rowconfigure(1, weight=1)
 
-        # 頂部工具列
+        # 頂部工具列（極簡 + 進階選單）
         toolbar = ttk.Frame(self)
         toolbar.grid(row=0, column=0, sticky="we", padx=8, pady=8)
         ttk.Button(toolbar, text="選擇 PDF", command=self.pick_pdf).pack(side="left")
@@ -162,11 +170,21 @@ class PDFFillGUI(tk.Tk):
         ttk.Button(toolbar, text="儲存 JSON", command=self.save_values).pack(side="left", padx=6)
         ttk.Checkbutton(toolbar, text="手寫隨機化", variable=self.random_flag).pack(side="left", padx=12)
         ttk.Checkbutton(toolbar, text="顯示紅框", variable=self.show_boxes, command=self.update_preview).pack(side="left")
-        ttk.Checkbutton(toolbar, text="編輯紅框", variable=self.edit_boxes, command=self._toggle_edit_mode).pack(side="left")
         ttk.Label(toolbar, text="步長(pt)").pack(side="left", padx=(12, 4))
         ttk.Spinbox(toolbar, from_=1, to=20, textvariable=self.nudge_step, width=4).pack(side="left")
-        ttk.Button(toolbar, text="全域設定", command=self.open_global_settings).pack(side="left")
-        ttk.Button(toolbar, text="進階設定(全域)", command=self.open_advanced_global).pack(side="left", padx=6)
+        # 極簡：將進階動作收入彈出選單
+        ttk.Button(toolbar, text="簡易模式", command=self.open_quick_adjust).pack(side="left")
+        adv_btn = tk.Menubutton(toolbar, text="進階", relief="raised")
+        adv_menu = tk.Menu(adv_btn, tearoff=False)
+        adv_menu.add_command(label="本次微調（詳細）", command=self.open_session_overrides)
+        adv_menu.add_command(label="篩選器（層級開關）", command=self.open_filter_pipeline)
+        adv_menu.add_separator()
+        adv_menu.add_command(label="全域設定（快速）", command=self.open_global_settings)
+        adv_menu.add_command(label="進階設定（全域）", command=self.open_advanced_global)
+        adv_menu.add_separator()
+        adv_menu.add_checkbutton(label="編輯紅框（互動）", variable=self.edit_boxes, command=self._toggle_edit_mode)
+        adv_btn.configure(menu=adv_menu)
+        adv_btn.pack(side="left", padx=(6, 0))
         ttk.Button(toolbar, text="預覽", command=self.update_preview).pack(side="left", padx=6)
         ttk.Button(toolbar, text="輸出 PDF", command=self.export_pdf).pack(side="left")
 
@@ -196,6 +214,9 @@ class PDFFillGUI(tk.Tk):
         self.preview_canvas.bind('<B1-Motion>', self._on_preview_drag)
         self.preview_canvas.bind('<ButtonRelease-1>', self._on_preview_release)
         self.bind('<KeyPress>', self._on_key_press)
+
+        # 啟動時預設開啟簡易模式（可在此改為條件控制）
+        self.after(300, self.open_quick_adjust)
 
         # 將左右加入 Pane，並設定最小寬度，預設給左側較寬以避免按鈕被擠掉
         self.panes.add(left, minsize=380)
@@ -529,37 +550,166 @@ class PDFFillGUI(tk.Tk):
 
     def _generate_image_with_overrides(self, key, text):
         ov = self.field_overrides.get(key, {})
-        font_path = ov.get('font', None)
-        rnd = ov.get('random', None)
+        # 欄位字型（當欄位層啟用時才採用）
+        field_font = ov.get('font', None) if self.use_field_filter.get() else None
+        font_path = field_font
+        # 隨機化（欄位層啟用且有覆寫時採用，否則用全域勾選）
+        rnd = ov.get('random', None) if self.use_field_filter.get() else None
         use_random = self.random_flag.get() if rnd is None else rnd
         overrides = {}
-        # 先套用全域覆寫
-        if int(self.global_line_width.get()) > 0:
-            overrides['LINE_WIDTH'] = int(self.global_line_width.get())
-        if int(self.global_blur.get()) > 0:
-            overrides['BLUR_AMOUNT'] = int(self.global_blur.get())
-        # 全域進階覆寫（完整集）
-        if self.global_config_overrides:
-            overrides.update(self.global_config_overrides)
-        # 欄位覆寫優先於全域覆寫
-        if ov.get('line_width'):
-            overrides['LINE_WIDTH'] = int(ov['line_width'])
-        if ov.get('blur') is not None and ov.get('blur') != 0:
-            overrides['BLUR_AMOUNT'] = int(ov['blur'])
-        if ov.get('perturb') is not None and ov.get('perturb') != 0:
-            overrides['PERTURB'] = int(ov['perturb'])
-        if ov.get('shear') is not None and ov.get('shear') != 0:
-            overrides['SHEAR_ANGLE'] = int(ov['shear'])
-        if ov.get('color'):
-            c = ov['color']
-            if isinstance(c, (list, tuple)) and len(c)==3:
-                overrides['COLOR_BASE'] = tuple(int(max(0,min(255,int(x)))) for x in c)
-        # 欄位進階覆寫（完整集）
-        if ov.get('config_overrides'):
-            overrides.update(ov['config_overrides'])
-        rp = int(ov.get('random_per', 10)) if ov.get('random_per') is not None else 10
-        img = generate_text_image(text, font_path=font_path, random=use_random, random_per=rp, overrides=overrides or None)
+        # 先套用「報告層」覆寫（若啟用）
+        if self.use_report_filter.get():
+            if int(self.global_line_width.get()) > 0:
+                overrides['LINE_WIDTH'] = int(self.global_line_width.get())
+            if int(self.global_blur.get()) > 0:
+                overrides['BLUR_AMOUNT'] = int(self.global_blur.get())
+            if self.global_config_overrides:
+                overrides.update(self.global_config_overrides)
+        # 欄位覆寫（若啟用）優先於報告層
+        if self.use_field_filter.get():
+            if ov.get('line_width'):
+                overrides['LINE_WIDTH'] = int(ov['line_width'])
+            if ov.get('blur') is not None and ov.get('blur') != 0:
+                overrides['BLUR_AMOUNT'] = int(ov['blur'])
+            if ov.get('perturb') is not None and ov.get('perturb') != 0:
+                overrides['PERTURB'] = int(ov['perturb'])
+            if ov.get('shear') is not None and ov.get('shear') != 0:
+                overrides['SHEAR_ANGLE'] = int(ov['shear'])
+            if ov.get('color'):
+                c = ov['color']
+                if isinstance(c, (list, tuple)) and len(c) == 3:
+                    overrides['COLOR_BASE'] = tuple(int(max(0, min(255, int(x)))) for x in c)
+            if ov.get('config_overrides'):
+                overrides.update(ov['config_overrides'])
+        # 句子層：以 config.SESSION_RENDER_OVERRIDES 臨時覆寫（只在本次有效；若啟用）
+        if self.use_sentence_filter.get() and getattr(self, 'session_char_overrides', None):
+            overrides['SESSION_RENDER_OVERRIDES'] = dict(self.session_char_overrides)
+        # 若停用單字層，則清空 SPECIAL_RENDER_OVERRIDES；若啟用則沿用
+        if not self.use_char_filter.get():
+            overrides['SPECIAL_RENDER_OVERRIDES'] = {}
+        # 隨機化幅度（欄位覆寫若停用則以預設 10）
+        rp = 10
+        if self.use_field_filter.get() and ov.get('random_per') is not None:
+            try:
+                rp = int(ov.get('random_per', 10))
+            except Exception:
+                rp = 10
+        # 字元路由：若欄位有指定字型，則忽略路由；若停用單字層，忽略路由；否則允許路由
+        ignore_router_flag = False
+        if field_font:
+            ignore_router_flag = True
+        if not self.use_char_filter.get():
+            ignore_router_flag = True
+        img = generate_text_image(
+            text,
+            font_path=font_path,
+            ignore_router=ignore_router_flag,
+            random=use_random,
+            random_per=rp,
+            overrides=overrides or None,
+        )
         return img
+
+    # ====== 句子層（本次渲染）覆寫 ======
+    def open_session_overrides(self):
+        # 只在記憶體中生效，不寫檔；支援四鍵：scale/offset_y/alpha/spacing（CTK 版）
+        try:
+            ctk.set_appearance_mode("dark")
+        except Exception:
+            pass
+        win = ctk.CTkToplevel(self)
+        win.title("本次覆寫（僅此回合）")
+        frm = ctk.CTkFrame(win)
+        frm.pack(fill='both', expand=True, padx=10, pady=10)
+        # 預設清單（句子預設）
+        presets = {}
+        try:
+            import Make_report_sign_easy.config as cfg
+            p = os.path.join(cfg.BASE_DIR, 'configs', 'sentence_presets.json')
+            if os.path.exists(p):
+                with open(p, 'r', encoding='utf-8') as f:
+                    presets = json.load(f) or {}
+        except Exception:
+            presets = {}
+        row0 = ctk.CTkFrame(frm)
+        row0.grid(row=0, column=0, columnspan=2, sticky='w', pady=(0, 8))
+        ctk.CTkLabel(row0, text='載入句子預設：').pack(side='left')
+        names = sorted(list(presets.keys())) if isinstance(presets, dict) else []
+        preset_cb = ctk.CTkComboBox(row0, values=['']+names, width=220)
+        preset_cb.pack(side='left', padx=6)
+
+        # 現值（從 config 會話層讀不到，因為尚未套用；用自家暫存）
+        cur = getattr(self, 'session_char_overrides', {}) if hasattr(self, 'session_char_overrides') else {}
+        scale_v = tk.StringVar(value=str(cur.get('scale', '')))
+        offy_v = tk.StringVar(value=str(cur.get('offset_y', '')))
+        alpha_v = tk.StringVar(value=str(cur.get('alpha', '')))
+        spacing_v = tk.StringVar(value=str(cur.get('spacing', '')))
+
+        def add_row(r, label, var):
+            ctk.CTkLabel(frm, text=label, width=80, anchor='e').grid(row=r, column=0, sticky='e', padx=6, pady=4)
+            ctk.CTkEntry(frm, textvariable=var, width=120).grid(row=r, column=1, sticky='w')
+
+        add_row(1, 'scale', scale_v)
+        add_row(2, 'offset_y', offy_v)
+        add_row(3, 'alpha', alpha_v)
+        add_row(4, 'spacing', spacing_v)
+
+        def _load_from_preset():
+            name = (preset_cb.get() or '').strip()
+            if not name or name not in presets:
+                return
+            d = presets.get(name) or {}
+
+            def _get(k):
+                v = d.get(k, '')
+                return '' if v is None else str(v)
+            scale_v.set(_get('scale'))
+            offy_v.set(_get('offset_y'))
+            alpha_v.set(_get('alpha'))
+            spacing_v.set(_get('spacing'))
+
+        ctk.CTkButton(row0, text='載入', command=_load_from_preset).pack(side='left')
+
+        btns = ctk.CTkFrame(frm)
+        btns.grid(row=5, column=0, columnspan=2, pady=8)
+
+        def _parse_float(s):
+            try:
+                return float(s)
+            except Exception:
+                return None
+
+        def _parse_int(s):
+            try:
+                return int(float(s))
+            except Exception:
+                return None
+
+        def _apply():
+            newv = {}
+            sv = _parse_float(scale_v.get().strip())
+            if sv is not None:
+                newv['scale'] = sv
+            oy = _parse_float(offy_v.get().strip())
+            if oy is not None:
+                newv['offset_y'] = oy
+            al = _parse_int(alpha_v.get().strip())
+            if al is not None:
+                newv['alpha'] = max(0, min(255, al))
+            sp = _parse_int(spacing_v.get().strip())
+            if sp is not None:
+                newv['spacing'] = sp
+            self.session_char_overrides = newv
+            win.destroy()
+            self.update_preview()
+
+        def _clear():
+            self.session_char_overrides = {}
+            win.destroy()
+            self.update_preview()
+
+        ctk.CTkButton(btns, text='套用', command=_apply).pack(side='left', padx=6)
+        ctk.CTkButton(btns, text='清除', command=_clear).pack(side='left', padx=6)
 
     # ====== 高階設定視窗 ======
     def open_advanced_global(self):
@@ -581,6 +731,86 @@ class PDFFillGUI(tk.Tk):
         # 立即更新預覽
         self.update_preview()
 
+    # ====== 簡易模式（快速調整） ======
+    def open_quick_adjust(self):
+        # 以 CTK 風格開啟「簡易模式」視窗
+        try:
+            ctk.set_appearance_mode("dark")
+        except Exception:
+            pass
+        win = ctk.CTkToplevel(self)
+        win.title("簡易模式：快速調整")
+        frm = ctk.CTkFrame(win)
+        frm.pack(fill='both', expand=True, padx=10, pady=10)
+        # 預設清單
+        presets = {}
+        try:
+            import Make_report_sign_easy.config as cfg
+            p = os.path.join(cfg.BASE_DIR, 'configs', 'sentence_presets.json')
+            if os.path.exists(p):
+                with open(p, 'r', encoding='utf-8') as f:
+                    presets = json.load(f) or {}
+        except Exception:
+            presets = {}
+        ctk.CTkLabel(frm, text='預設：').grid(row=0, column=0, sticky='e', padx=4, pady=4)
+        names = sorted(list(presets.keys())) if isinstance(presets, dict) else []
+        preset_cb = ctk.CTkComboBox(frm, values=[''] + names, width=220)
+        preset_cb.grid(row=0, column=1, sticky='w')
+        def _load():
+            name = (preset_cb.get() or '').strip()
+            if not name or name not in presets:
+                return
+            d = presets.get(name) or {}
+            sv = d.get('scale', None)
+            if sv is not None:
+                scale_v.set(float(sv))
+            spv = d.get('spacing', None)
+            if spv is not None:
+                spacing_v.set(int(spv))
+            _apply(live=True)
+        ctk.CTkButton(frm, text='載入', command=_load).grid(row=0, column=2, sticky='w', padx=6)
+
+        # 分隔線
+        sep = ctk.CTkFrame(frm, height=1)
+        sep.grid(row=1, column=0, columnspan=3, sticky='ew', pady=(6, 8))
+        frm.grid_columnconfigure(1, weight=1)
+
+        scale_v = tk.DoubleVar(value=float(self.session_char_overrides.get('scale', 1.0)))
+        spacing_v = tk.IntVar(value=int(self.session_char_overrides.get('spacing', 0)))
+        live_v = tk.BooleanVar(value=True)
+
+        ctk.CTkLabel(frm, text='scale').grid(row=2, column=0, sticky='e', padx=4, pady=6)
+        s1 = ctk.CTkSlider(frm, from_=0.5, to=1.5, number_of_steps=100)
+        s1.set(scale_v.get())
+        s1.grid(row=2, column=1, sticky='we', padx=4)
+        ctk.CTkLabel(frm, text='').grid(row=2, column=2)  # 占位
+
+        ctk.CTkLabel(frm, text='spacing').grid(row=3, column=0, sticky='e', padx=4, pady=6)
+        s2 = ctk.CTkSlider(frm, from_=-20, to=40, number_of_steps=60)
+        s2.set(spacing_v.get())
+        s2.grid(row=3, column=1, sticky='we', padx=4)
+        ctk.CTkCheckBox(frm, text='即時預覽', variable=live_v).grid(row=3, column=2, sticky='w')
+
+        def _apply(live=False):
+            vals = {}
+            sv = float(s1.get())
+            if abs(sv - 1.0) > 1e-6:
+                vals['scale'] = sv
+            sp = int(round(float(s2.get())))
+            if sp != 0:
+                vals['spacing'] = sp
+            self.session_char_overrides = vals
+            if live or live_v.get():
+                self.update_preview()
+
+        s1.configure(command=lambda v: _apply(live=True))
+        s2.configure(command=lambda v: _apply(live=True))
+
+        btns = ctk.CTkFrame(frm)
+        btns.grid(row=4, column=0, columnspan=3, pady=(8, 0))
+        ctk.CTkButton(btns, text='套用', command=_apply).pack(side='left', padx=6)
+        ctk.CTkButton(btns, text='關閉', command=win.destroy).pack(side='left', padx=6)
+
     def open_advanced_field(self, key, parent=None):
         win = tk.Toplevel(parent or self)
         win.title(f"進階設定（欄位：{key}）")
@@ -596,6 +826,55 @@ class PDFFillGUI(tk.Tk):
             self.update_preview()
         panel = ConfigPanel(win, start_values=start, on_apply=_apply)
         panel.grid(row=0, column=0, sticky='nsew')
+
+    # ====== 篩選器（層級開關） ======
+    def open_filter_pipeline(self):
+        try:
+            ctk.set_appearance_mode("dark")
+        except Exception:
+            pass
+        win = ctk.CTkToplevel(self)
+        win.title("篩選器：層級開關")
+        frm = ctk.CTkFrame(win)
+        frm.pack(fill='both', expand=True, padx=10, pady=10)
+        ctk.CTkLabel(
+            frm,
+            text='渲染流程依優先序套用下列層級，未命中則自動回退到下一層：',
+            anchor='w',
+        ).grid(row=0, column=0, columnspan=2, sticky='w')
+        ctk.CTkCheckBox(
+            frm,
+            text='單字篩選器（字路由／單字屬性）',
+            variable=self.use_char_filter,
+        ).grid(row=1, column=0, sticky='w', pady=2)
+        ctk.CTkCheckBox(
+            frm,
+            text='句子篩選器（本次覆寫）',
+            variable=self.use_sentence_filter,
+        ).grid(row=2, column=0, sticky='w', pady=2)
+        ctk.CTkCheckBox(
+            frm,
+            text='欄位篩選器（欄位覆寫）',
+            variable=self.use_field_filter,
+        ).grid(row=3, column=0, sticky='w', pady=2)
+        ctk.CTkCheckBox(
+            frm,
+            text='報告篩選器（全域/進階）',
+            variable=self.use_report_filter,
+        ).grid(row=4, column=0, sticky='w', pady=2)
+        hint = (
+            """說明:
+ - 單字: 使用字路由(font_routes)與 SPECIAL_RENDER_OVERRIDES。
+ - 句子: 使用「本次覆寫」的四鍵(scale/offset_y/alpha/spacing)。
+ - 欄位: 使用每個欄位的字型/線寬/模糊/顏色/進階覆寫與 scale。
+ - 報告: 使用全域線寬/模糊以及「進階設定(全域)」。
+ 未命中時會自動落回下一層，最後落到全域預設。"""
+        )
+        ctk.CTkLabel(frm, text=hint, justify='left', anchor='w').grid(row=5, column=0, sticky='w', pady=(6, 8))
+        btns = ctk.CTkFrame(frm)
+        btns.grid(row=6, column=0, sticky='w')
+        ctk.CTkButton(btns, text='套用', command=lambda: (win.destroy(), self.update_preview())).pack(side='left', padx=4)
+        ctk.CTkButton(btns, text='關閉', command=win.destroy).pack(side='left', padx=4)
 
     def _paste_image_scaled(self, page, rect, img, scale_mult=1.0):
         # 根據 rect 計算等比縮放，套用 scale_mult 後置中貼入
@@ -641,7 +920,9 @@ class PDFFillGUI(tk.Tk):
                 continue
             # 細化與縮放
             img = self._apply_thickness_if_needed(key, img)
-            scale_mult = self.field_overrides.get(key, {}).get('scale', 1.0) * self.global_scale.get()
+            # 欄位 scale 僅在欄位篩選器啟用時生效
+            field_scale = self.field_overrides.get(key, {}).get('scale', 1.0) if self.use_field_filter.get() else 1.0
+            scale_mult = field_scale * self.global_scale.get()
             img_w, img_h = img.size
             rect_w = rect.width * zoom
             rect_h = rect.height * zoom

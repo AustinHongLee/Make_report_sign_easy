@@ -1,7 +1,6 @@
 import os
 import json
 import customtkinter as ctk
-from PIL import ImageTk, Image
 
 from . import builder, config
 from . import auto_update
@@ -47,8 +46,12 @@ class ConfigGUI(ctk.CTk):
         self.grid_columnconfigure(2, weight=1)
         row = 0
         ctk.CTkLabel(self, text="字體 Font").grid(row=row, column=0, sticky="w", padx=5, pady=5)
-        font_cb = ctk.CTkComboBox(self, variable=self.font_var, values=self.fonts_list,
-                                 command=lambda _: self.update_preview())
+        font_cb = ctk.CTkComboBox(
+            self,
+            variable=self.font_var,
+            values=self.fonts_list,
+            command=lambda _: self.update_preview(),
+        )
         font_cb.grid(row=row, column=1, columnspan=2, sticky="we", padx=5)
         row += 1
 
@@ -83,9 +86,9 @@ class ConfigGUI(ctk.CTk):
             target_height = 200
             scale = target_height / img.height
             new_size = (max(1, int(img.width * scale)), target_height)
-            img = img.resize(new_size, Image.LANCZOS)
-            self._tk_img = ImageTk.PhotoImage(img)
-            self.preview_label.configure(image=self._tk_img)
+            # 使用 CTkImage 以支援 HiDPI 縮放
+            self._ctk_img = ctk.CTkImage(light_image=img, size=new_size)
+            self.preview_label.configure(image=self._ctk_img, text="")
 
     def save_config(self):
         data = {}

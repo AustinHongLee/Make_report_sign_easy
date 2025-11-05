@@ -81,6 +81,11 @@ class ConfirmManager(tk.Frame):
 
         self.refresh_confirmed()
 
+        # Tab 3: 句子預設（持久化的句子級風格）
+        preset_tab = ttk.Frame(nb)
+        nb.add(preset_tab, text="句子預設")
+        self._build_sentence_preset_tab(preset_tab)
+
     def load_candidates(self):
         text = self.char_var.get().strip()
         if not text:
@@ -283,6 +288,251 @@ class ConfirmManager(tk.Frame):
             json.dump(router, f, ensure_ascii=False, indent=2)
         messagebox.showinfo("完成", f"已移除 {removed} 筆並更新路由")
         self.refresh_confirmed()
+
+    # ====== 句子預設 CRUD ======
+    def _build_sentence_preset_tab(self, tab):
+        top = ttk.Frame(tab)
+        top.pack(side='top', fill='x', padx=8, pady=8)
+        ttk.Label(top, text='名稱：').pack(side='left')
+        self.preset_name = tk.StringVar()
+        ttk.Entry(top, textvariable=self.preset_name, width=24).pack(side='left', padx=6)
+        ttk.Button(top, text='新增/更新', command=self._save_sentence_preset).pack(side='left', padx=4)
+        ttk.Button(top, text='刪除', command=self._delete_sentence_preset).pack(side='left', padx=4)
+        ttk.Button(top, text='重新整理', command=self._refresh_sentence_presets).pack(side='left', padx=4)
+
+        # 句子候選（與『挑選』概念相同，僅對整句）
+        row_sentence = ttk.Frame(tab)
+        row_sentence.pack(side='top', fill='x', padx=8)
+        ttk.Label(row_sentence, text='句子：').pack(side='left')
+        self.sent_text = tk.StringVar()
+        ttk.Entry(row_sentence, textvariable=self.sent_text, width=40).pack(side='left', padx=6)
+        ttk.Button(row_sentence, text='生成候選', command=self._load_sentence_candidates).pack(side='left')
+
+        body = ttk.Frame(tab)
+        body.pack(fill='both', expand=True, padx=8, pady=8)
+        # 左側清單
+        left = ttk.Frame(body)
+        left.pack(side='left', fill='y')
+        self.preset_list = tk.Listbox(left, height=16)
+        self.preset_list.pack(side='left', fill='y')
+        self.preset_list.bind('<<ListboxSelect>>', self._on_select_preset)
+        sb = ttk.Scrollbar(left, orient='vertical', command=self.preset_list.yview)
+        self.preset_list.configure(yscrollcommand=sb.set)
+        sb.pack(side='right', fill='y')
+        # 右側編輯
+        right = ttk.Frame(body)
+        right.pack(side='left', fill='both', expand=True, padx=12)
+        # 欄位集合
+        self.sp_scale = tk.StringVar()
+        self.sp_offy = tk.StringVar()
+        self.sp_alpha = tk.StringVar()
+        self.sp_spacing = tk.StringVar()
+        self.sp_lw = tk.StringVar()
+        self.sp_blur = tk.StringVar()
+        self.sp_perturb = tk.StringVar()
+        self.sp_shear = tk.StringVar()
+        self.sp_color = tk.StringVar()
+        self.sp_font = tk.StringVar()
+
+        def row(r, label, var, width=12):
+            ttk.Label(right, text=label, width=12).grid(row=r, column=0, sticky='e', pady=3)
+            ttk.Entry(right, textvariable=var, width=width).grid(row=r, column=1, sticky='w')
+
+        row(0, 'scale', self.sp_scale)
+        row(1, 'offset_y', self.sp_offy)
+        row(2, 'alpha', self.sp_alpha)
+        row(3, 'spacing', self.sp_spacing)
+        row(4, 'line_width', self.sp_lw)
+        row(5, 'blur', self.sp_blur)
+        row(6, 'perturb', self.sp_perturb)
+        row(7, 'shear', self.sp_shear)
+        row(8, 'color(r,g,b)', self.sp_color)
+        # 字型用 combobox（若可列出 fonts）
+        ttk.Label(right, text='font').grid(row=9, column=0, sticky='e', pady=3)
+        fonts = []
+        try:
+            fonts = [f for f in os.listdir(self.font_dir) if f.lower().endswith('.ttf')]
+        except Exception:
+            pass
+        self.sp_font_combo = ttk.Combobox(right, textvariable=self.sp_font, values=[''] + fonts, width=30, state='readonly')
+        self.sp_font_combo.grid(row=9, column=1, sticky='w')
+
+        self._refresh_sentence_presets()
+
+        # 候選清單（句子 × 字型）
+        cand = ttk.LabelFrame(tab, text='候選（句子 × 字型）')
+        cand.pack(fill='both', expand=True, padx=8, pady=(6, 8))
+        self.sent_canvas = tk.Canvas(cand, borderwidth=0, highlightthickness=0)
+        self.sent_scroll = ttk.Scrollbar(cand, orient='vertical', command=self.sent_canvas.yview)
+        self.sent_inner = ttk.Frame(self.sent_canvas)
+        self.sent_inner.bind(
+            '<Configure>',
+            lambda e: self.sent_canvas.configure(scrollregion=self.sent_canvas.bbox('all')),
+        )
+        self.sent_canvas.create_window((0, 0), window=self.sent_inner, anchor='nw')
+        self.sent_canvas.configure(yscrollcommand=self.sent_scroll.set)
+        self.sent_canvas.pack(side='left', fill='both', expand=True)
+        self.sent_scroll.pack(side='right', fill='y')
+        self._sent_thumbs = []
+
+    def _load_sentence_candidates(self):
+        txt = (self.sent_text.get() or '').strip()
+        if not txt:
+            messagebox.showinfo('提示', '請先輸入句子內容')
+            return
+        for w in self.sent_inner.winfo_children():
+            w.destroy()
+        self._sent_thumbs.clear()
+        # 掃描字型並產生縮圖
+        try:
+            fonts = [f for f in os.listdir(self.font_dir) if f.lower().endswith('.ttf')]
+        except Exception:
+            fonts = []
+        fonts.sort()
+        row = 0
+        col = 0
+        max_cols = 2
+        for f in fonts:
+            font_path = os.path.join(self.font_dir, f)
+            try:
+                img = generate_text_image(txt, font_path=font_path, random=False)
+            except Exception:
+                img = None
+            if not img:
+                continue
+            # 產生較寬的縮圖
+            max_side = 320
+            scale = min(max_side / max(1, img.width), 180 / max(1, img.height))
+            scale = max(0.1, min(1.0, scale))
+            thumb = img.resize((int(img.width * scale), int(img.height * scale)))
+            ph = ImageTk.PhotoImage(thumb)
+            self._sent_thumbs.append(ph)
+
+            frame = ttk.Frame(self.sent_inner, padding=6)
+            frame.grid(row=row, column=col, sticky='nw')
+            ttk.Label(frame, image=ph).pack()
+            ttk.Label(frame, text=f, width=40).pack(anchor='w')
+            ttk.Button(
+                frame,
+                text='選用此字型',
+                command=lambda name=f: self.sp_font.set(name),
+            ).pack(anchor='w', pady=(4, 0))
+
+            col += 1
+            if col >= max_cols:
+                col = 0
+                row += 1
+
+    def _sentence_presets_path(self):
+        return os.path.join(config.BASE_DIR, 'configs', 'sentence_presets.json')
+
+    def _read_sentence_presets(self):
+        path = self._sentence_presets_path()
+        if not os.path.exists(path):
+            return {}
+        try:
+            import json
+            with open(path, 'r', encoding='utf-8') as f:
+                return json.load(f) or {}
+        except Exception:
+            return {}
+
+    def _write_sentence_presets(self, data: dict):
+        os.makedirs(os.path.join(config.BASE_DIR, 'configs'), exist_ok=True)
+        import json
+        with open(self._sentence_presets_path(), 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+
+    def _refresh_sentence_presets(self):
+        self._sp_data = self._read_sentence_presets()
+        self.preset_list.delete(0, tk.END)
+        for name in sorted(self._sp_data.keys()):
+            self.preset_list.insert(tk.END, name)
+
+    def _on_select_preset(self, event=None):
+        sel = self.preset_list.curselection()
+        if not sel:
+            return
+        name = self.preset_list.get(sel[0])
+        self.preset_name.set(name)
+        data = self._sp_data.get(name, {})
+        self.sp_scale.set(str(data.get('scale', '')))
+        self.sp_offy.set(str(data.get('offset_y', '')))
+        self.sp_alpha.set(str(data.get('alpha', '')))
+        self.sp_spacing.set(str(data.get('spacing', '')))
+        self.sp_lw.set(str(data.get('line_width', '')))
+        self.sp_blur.set(str(data.get('blur', '')))
+        self.sp_perturb.set(str(data.get('perturb', '')))
+        self.sp_shear.set(str(data.get('shear', '')))
+        self.sp_color.set(str(tuple(data.get('color', ())) if data.get('color') else ''))
+        self.sp_font.set(os.path.basename(data.get('font_path', '')) if data.get('font_path') else '')
+
+    def _save_sentence_preset(self):
+        name = (self.preset_name.get() or '').strip()
+        if not name:
+            messagebox.showwarning('提示', '請輸入名稱')
+            return
+        def _float(s):
+            try:
+                return float(s)
+            except Exception:
+                return None
+        def _int(s):
+            try:
+                return int(float(s))
+            except Exception:
+                return None
+        data = self._read_sentence_presets()
+        entry = {}
+        v = _float(self.sp_scale.get());
+        if v is not None: entry['scale'] = v
+        v = _float(self.sp_offy.get());
+        if v is not None: entry['offset_y'] = v
+        v = _int(self.sp_alpha.get());
+        if v is not None: entry['alpha'] = max(0, min(255, v))
+        v = _int(self.sp_spacing.get());
+        if v is not None: entry['spacing'] = v
+        v = _int(self.sp_lw.get());
+        if v is not None: entry['line_width'] = max(1, min(10, v))
+        v = _float(self.sp_blur.get());
+        if v is not None: entry['blur'] = max(0.0, min(10.0, v))
+        v = _int(self.sp_perturb.get());
+        if v is not None: entry['perturb'] = max(0, min(30, v))
+        v = _int(self.sp_shear.get());
+        if v is not None: entry['shear'] = max(-45, min(45, v))
+        # 顏色
+        try:
+            c = eval(self.sp_color.get()) if self.sp_color.get().strip() else None
+            if isinstance(c, (list, tuple)) and len(c) == 3:
+                entry['color'] = [int(max(0, min(255, int(x)))) for x in c]
+        except Exception:
+            pass
+        # 字型路徑
+        font_name = (self.sp_font.get() or '').strip()
+        if font_name:
+            entry['font_path'] = os.path.join(self.font_dir, font_name)
+        data[name] = entry
+        try:
+            self._write_sentence_presets(data)
+            self._refresh_sentence_presets()
+            messagebox.showinfo('完成', '已儲存句子預設')
+        except Exception as e:
+            messagebox.showerror('錯誤', f'寫入失敗：{e}')
+
+    def _delete_sentence_preset(self):
+        name = (self.preset_name.get() or '').strip()
+        if not name:
+            messagebox.showinfo('提示', '請選擇要刪除的預設')
+            return
+        data = self._read_sentence_presets()
+        if name in data:
+            data.pop(name, None)
+            try:
+                self._write_sentence_presets(data)
+                self._refresh_sentence_presets()
+                messagebox.showinfo('完成', '已刪除')
+            except Exception as e:
+                messagebox.showerror('錯誤', f'刪除失敗：{e}')
 
     # ====== 單字屬性覆寫（使用 config.SPECIAL_RENDER_OVERRIDES）======
     def open_char_attributes(self):

@@ -38,6 +38,22 @@ class MainApp(tk.Tk):
             command=self.open_pdf_tool,
         ).pack(pady=8)
 
+        # Tab: 參數設定（CTK 版）
+        ctk_tab = ttk.Frame(nb)
+        nb.add(ctk_tab, text="參數設定 (CTK)")
+        ttk.Label(
+            ctk_tab,
+            text=(
+                "這是使用 customtkinter 的參數設定介面，提供深色主題與一致風格。\n"
+                "按下按鈕以獨立視窗啟動。"
+            ),
+        ).pack(padx=16, pady=16)
+        ttk.Button(
+            ctk_tab,
+            text="開啟 CTK 設定介面",
+            command=self.open_ctk_config,
+        ).pack(pady=8)
+
         # Tab: 字型挑選 / confirm 管理
         confirm_tab = ttk.Frame(nb)
         nb.add(confirm_tab, text="字型挑選 / confirm")
@@ -62,6 +78,17 @@ class MainApp(tk.Tk):
         except Exception:
             # 回退：用訊息提醒
             messagebox.showinfo("提示", "已嘗試啟動 fill_pdf_gui.py")
+
+    def open_ctk_config(self):
+        # 使用子行程啟動 CTK 設定 GUI，避免混用 Tk 與 CTk 事件循環
+        import subprocess
+        import sys
+        exe = sys.executable
+        script = os.path.join(os.path.dirname(__file__), 'ctk_config_gui.py')
+        try:
+            subprocess.Popen([exe, script])
+        except Exception:
+            messagebox.showerror("啟動失敗", "無法啟動 CTK 設定介面，請確認環境與相依套件。")
 
 
 def main():

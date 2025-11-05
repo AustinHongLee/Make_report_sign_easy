@@ -311,6 +311,12 @@ SPECIAL_RENDER_OVERRIDES = {
     '"':  {'scale': 0.4, 'offset_y': -0.3, 'alpha': 200, 'spacing': -200},
 }
 
+# 會話層（本次渲染）臨時覆寫：只在當前執行期間生效，不建議持久化。
+# 可包含的鍵：'scale'(float), 'offset_y'(float),
+#             'alpha'(int 0~255), 'spacing'(int)
+# 注意：此層優先於 SPECIAL_RENDER_OVERRIDES，但應低於欄位級的直接覆寫（若欄位邏輯有實作）。
+SESSION_RENDER_OVERRIDES: dict = {}
+
 # 對數字補充設定（數字通常佔據較大字框）
 for d in '0123456789':
     SPECIAL_RENDER_OVERRIDES.setdefault(d, {})

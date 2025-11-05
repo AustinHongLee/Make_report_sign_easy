@@ -15,8 +15,20 @@ def draw_solid_fill_layer(paths, size, scale, ox, oy, min_x, min_y, current_char
         if len(poly) >= 3:
             draw.polygon(poly, fill=255 if is_cjk or i % 2 == 0 else 0)
     final_layer = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    alpha = config.SPECIAL_RENDER_OVERRIDES.get(current_char, {}).get("alpha", 255)
-    color_layer = Image.new("RGBA", (size, size), varied_color(config.COLOR_BASE, config.COLOR_VARIATION, alpha))
+    # 會話層優先於單字覆寫
+    session_alpha = (config.SESSION_RENDER_OVERRIDES or {}).get("alpha")
+    alpha = (
+        session_alpha
+        if session_alpha is not None
+        else config.SPECIAL_RENDER_OVERRIDES.get(current_char, {}).get(
+            "alpha", 255
+        )
+    )
+    color_layer = Image.new(
+        "RGBA",
+        (size, size),
+        varied_color(config.COLOR_BASE, config.COLOR_VARIATION, alpha),
+    )
     final_layer.paste(color_layer, mask=mask)
     return final_layer
 
@@ -30,8 +42,14 @@ def draw_partial_fill_layer(paths, size, scale, ox, oy, min_x, min_y):
                 px = (x - min_x) * scale + ox
                 py = (y - min_y) * scale + oy
                 r = random.uniform(*config.PARTIAL_DOT_RADIUS)
-                draw.ellipse((px - r, py - r, px + r, py + r),
-                             fill=varied_color(config.COLOR_BASE, config.COLOR_VARIATION, random.randint(*config.ALPHA_RANGE)))
+                draw.ellipse(
+                    (px - r, py - r, px + r, py + r),
+                    fill=varied_color(
+                        config.COLOR_BASE,
+                        config.COLOR_VARIATION,
+                        random.randint(*config.ALPHA_RANGE),
+                    ),
+                )
     return layer
 
 
@@ -45,7 +63,11 @@ def draw_stroke_alpha_layer(paths, size, scale, ox, oy, min_x, min_y):
             p1 = ((x1 - min_x) * scale + ox, (y1 - min_y) * scale + oy)
             p2 = ((x2 - min_x) * scale + ox, (y2 - min_y) * scale + oy)
             alpha = int(255 * (1 - abs(i / len(path) - 0.5) * 2))
-            draw.line(p1 + p2, fill=with_alpha(config.COLOR_BASE, alpha), width=config.LINE_WIDTH)
+            draw.line(
+                p1 + p2,
+                fill=with_alpha(config.COLOR_BASE, alpha),
+                width=config.LINE_WIDTH,
+            )
     return layer
 
 
@@ -58,8 +80,14 @@ def draw_stroke_blob_layer(paths, size, scale, ox, oy, min_x, min_y):
             px = (x - min_x) * scale + ox
             py = (y - min_y) * scale + oy
             r = random.randint(*config.BLOB_SIZE_RANGE)
-            draw.ellipse((px - r, py - r, px + r, py + r),
-                         fill=varied_color(config.COLOR_BASE, config.COLOR_VARIATION, random.randint(*config.ALPHA_RANGE)))
+            draw.ellipse(
+                (px - r, py - r, px + r, py + r),
+                fill=varied_color(
+                    config.COLOR_BASE,
+                    config.COLOR_VARIATION,
+                    random.randint(*config.ALPHA_RANGE),
+                ),
+            )
     return layer
 
 
@@ -71,8 +99,14 @@ def render_cjk_char(paths, size=512, current_char=None):
     min_y, max_y = min(all_y), max(all_y)
 
     override = config.SPECIAL_RENDER_OVERRIDES.get(current_char, {})
-    scale_ratio = override.get("scale")
-    offset_y_ratio = override.get("offset_y")
+    session = config.SESSION_RENDER_OVERRIDES or {}
+    # 會話層（本次）優先於單字覆寫
+    scale_ratio = session.get("scale")
+    if scale_ratio is None:
+        scale_ratio = override.get("scale")
+    offset_y_ratio = session.get("offset_y")
+    if offset_y_ratio is None:
+        offset_y_ratio = override.get("offset_y")
 
     if scale_ratio is None:
         if current_char is not None and '\u4e00' <= current_char <= '\u9fff':
@@ -110,7 +144,15 @@ def render_cjk_char(paths, size=512, current_char=None):
         draw_stroke_blob_layer,
         draw_stroke_alpha_layer
     ]:
-        kwargs = { "paths": paths, "size": size, "scale": scale, "ox": ox, "oy": oy, "min_x": min_x, "min_y": min_y }
+        kwargs = {
+            "paths": paths,
+            "size": size,
+            "scale": scale,
+            "ox": ox,
+            "oy": oy,
+            "min_x": min_x,
+            "min_y": min_y,
+        }
         if func == draw_solid_fill_layer:
             kwargs["current_char"] = current_char
         layer = func(**kwargs)
@@ -120,9 +162,13 @@ def render_cjk_char(paths, size=512, current_char=None):
         shrink = 0.6
         y_offset_ratio = 0.2
         new_size = int(size * shrink)
-        image = base.filter(ImageFilter.GaussianBlur(3)).resize((new_size, new_size), Image.LANCZOS)
+        image = base.filter(ImageFilter.GaussianBlur(3)).resize(
+            (new_size, new_size), Image.LANCZOS
+        )
         padded = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-        padded.paste(image, ((size - new_size) // 2, int(size * y_offset_ratio)))
+        padded.paste(
+            image, ((size - new_size) // 2, int(size * y_offset_ratio))
+        )
         return padded
 
     return base.filter(ImageFilter.GaussianBlur(config.BLUR_AMOUNT))
