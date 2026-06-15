@@ -1,0 +1,24 @@
+{
+  "template_field_keys": [
+    "Check_date_day_words",
+    "Check_date_month_words",
+    "Check_date_year_words",
+    "Check_director_name_words",
+    "Check_done_words",
+    "Check_value_words",
+    "Company_words",
+    "ExistingPipeThickness_words",
+    "PipeSupport_words",
+    "Sign_date_words",
+    "Sign_words",
+    "WeldAppearance_words",
+    "WeldCrownHeight_words"
+  ],
+  "filled_pdf_render": {
+    "pages": 1,
+    "width": 596,
+    "height": 842,
+    "sha256": "c1794714fe6ddcf11c2b05cc576a26543331fb8e88673a568a0569c1b86dea2f",
+    "annots": 0
+  }
+}

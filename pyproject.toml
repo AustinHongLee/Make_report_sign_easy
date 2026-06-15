@@ -15,6 +15,7 @@ dependencies = [
     "fonttools",
     "customtkinter",
     "packaging",
+    "PyMuPDF",
 ]
 
 [project.scripts]

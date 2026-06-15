@@ -9,6 +9,7 @@ import sys
 import json
 import io
 import argparse
+import random
 import fitz  # PyMuPDF
 
 # Allow running directly: prefer src on sys.path
@@ -83,7 +84,16 @@ def main():
     parser.add_argument(
         "--random", action="store_true", help="Enable random jitter for each character"
     )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=None,
+        help="Seed the renderer randomness for reproducible smoke/golden runs",
+    )
     args = parser.parse_args()
+
+    if args.seed is not None:
+        random.seed(args.seed)
 
     if not os.path.exists(args.template):
         raise FileNotFoundError(args.template)
