@@ -94,6 +94,8 @@ CLI 參數(`handfont-fill-pdf`):`--template`、`--output`、`--values`(皆必填
 - `src/Make_report_sign_easy/safe_char_map.py` ── 字元對應/替代處理。
 
 PDF 填寫
+- `src/Make_report_sign_easy/services/batch.py` ── `BatchFillService`,同一份 PDF
+  範本搭配多組 values 產出多份 PDF,對應「例行性重複簽名/填表」主需求。
 - `src/Make_report_sign_easy/services/fill_document.py` ── headless
   `FillDocumentService`,目前 root/package CLI 都已呼叫這裡;也可直接吃記憶體內
   `values` mapping,供未來 GUI 編輯流程使用。

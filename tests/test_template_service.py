@@ -1,10 +1,16 @@
 import json
+import os
+import sys
 from pathlib import Path
 
-from Make_report_sign_easy.services import TemplateService, ValueSetService
-
-
 REPO_ROOT = Path(__file__).resolve().parents[1]
+SRC = REPO_ROOT / "src"
+if os.path.isdir(SRC):
+    sys.path.insert(0, str(SRC))
+
+from Make_report_sign_easy.services import TemplateService, ValueSetService  # noqa: E402
+
+
 TEMPLATE = REPO_ROOT / "samples" / "附件六_管線工程施工自主檢查表.pdf"
 VALUES = REPO_ROOT / "samples" / "values_sample.json"
 EXPECTED = REPO_ROOT / "tests" / "golden" / "phase0_expected.json"
