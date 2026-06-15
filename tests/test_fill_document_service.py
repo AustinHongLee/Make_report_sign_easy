@@ -67,3 +67,23 @@ def test_fill_document_service_matches_phase0_golden(tmp_path):
     assert result.missing_fields == ()
     assert len(result.filled_fields) == len(expected["template_field_keys"])
     assert _page_render_hash(output_path) == expected["filled_pdf_render"]
+
+
+def test_fill_document_service_accepts_in_memory_values(tmp_path):
+    expected = json.loads(EXPECTED.read_text(encoding="utf-8"))
+    values = json.loads(VALUES.read_text(encoding="utf-8"))
+    output_path = tmp_path / "service-from-memory.pdf"
+
+    result = FillDocumentService().run(
+        FillDocumentRequest(
+            template_path=TEMPLATE,
+            values=values,
+            output_path=output_path,
+            clear_annots=True,
+            seed=0,
+        )
+    )
+
+    assert result.missing_fields == ()
+    assert len(result.filled_fields) == len(expected["template_field_keys"])
+    assert _page_render_hash(output_path) == expected["filled_pdf_render"]

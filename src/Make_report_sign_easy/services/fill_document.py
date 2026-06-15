@@ -1,19 +1,21 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-import json
 from pathlib import Path
+from typing import Mapping
 
 from Make_report_sign_easy.core import RenderProfile
 from Make_report_sign_easy.pdf.fill import fill_pdf
 from Make_report_sign_easy.pdf.models import FillResult
+from Make_report_sign_easy.services.values import ValueSetService
 
 
 @dataclass(frozen=True)
 class FillDocumentRequest:
     template_path: Path
-    values_path: Path
     output_path: Path
+    values_path: Path | None = None
+    values: Mapping[str, object] | None = None
     clear_annots: bool = False
     random: bool = False
     seed: int | None = None
@@ -23,14 +25,16 @@ class FillDocumentRequest:
 class FillDocumentService:
     """Use-case service for filling a PDF from a JSON value mapping."""
 
-    def run(self, request: FillDocumentRequest) -> FillResult:
-        if not request.values_path.exists():
-            raise FileNotFoundError(request.values_path)
+    def __init__(self, value_sets: ValueSetService | None = None) -> None:
+        self.value_sets = value_sets or ValueSetService()
 
-        with request.values_path.open("r", encoding="utf-8") as f:
-            values = json.load(f)
-        if not isinstance(values, dict):
-            raise ValueError("values must be a JSON object mapping {field_key: text}")
+    def run(self, request: FillDocumentRequest) -> FillResult:
+        if request.values is None:
+            if request.values_path is None:
+                raise ValueError("values or values_path is required")
+            values = self.value_sets.load_json(request.values_path).values
+        else:
+            values = request.values
 
         return fill_pdf(
             template_path=request.template_path,

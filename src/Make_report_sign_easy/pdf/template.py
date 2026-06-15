@@ -5,6 +5,7 @@ from pathlib import Path
 import fitz
 
 from .models import Field
+from .models import Template
 
 
 def extract_freetext_fields(
@@ -33,6 +34,18 @@ def extract_freetext_fields(
         return fields
     finally:
         doc.close()
+
+
+def load_freetext_template(
+    pdf_path: str | Path,
+    page_index: int = 0,
+) -> Template:
+    """Load a typed FreeText template model from one PDF page."""
+    path = Path(pdf_path)
+    return Template(
+        path=path,
+        fields=tuple(extract_freetext_fields(path, page_index=page_index)),
+    )
 
 
 def extract_freetext_positions(
