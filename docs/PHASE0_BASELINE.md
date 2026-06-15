@@ -42,4 +42,5 @@ Run:
 
 ```powershell
 python -m pytest
+python -m ruff check .
 ```

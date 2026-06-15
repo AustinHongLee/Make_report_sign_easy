@@ -9,8 +9,8 @@ src_root = os.path.join(repo_root, "src")
 if os.path.isdir(src_root) and src_root not in sys.path:
     sys.path.insert(0, src_root)
 
-from Make_report_sign_easy.pdf import extract_freetext_positions  # noqa: E402
-from Make_report_sign_easy.pdf.fill import paste_image_centered  # noqa: E402
+from Make_report_sign_easy.pdf import extract_freetext_positions  # noqa: E402,F401
+from Make_report_sign_easy.pdf.fill import paste_image_centered  # noqa: E402,F401
 from Make_report_sign_easy.services import (  # noqa: E402
     FillDocumentRequest,
     FillDocumentService,

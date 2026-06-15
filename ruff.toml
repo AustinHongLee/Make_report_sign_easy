@@ -1,5 +1,9 @@
-[tool.ruff]
 line-length = 120
 target-version = "py312"
 
 # Keep default rule set; rely on line-length to reduce noise.
+
+[lint.per-file-ignores]
+"tools/*.py" = ["E402"]
+"tools/confirm_gui.py" = ["E701", "E703"]
+"src/Make_report_sign_easy/import_confirmed_previews.py" = ["E722"]

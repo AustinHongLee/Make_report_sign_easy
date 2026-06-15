@@ -1,4 +1,3 @@
-import os
 import random
 # 使用相對匯入避免在未安裝套件時產生錯誤
 from . import config

@@ -18,8 +18,8 @@ if __name__ == "__main__" and __package__ is None:
         sys.path.insert(0, src_root)
     sys.path.insert(0, repo_root)
 
-from Make_report_sign_easy.pdf import extract_freetext_positions  # noqa: E402
-from Make_report_sign_easy.pdf.fill import paste_image_centered  # noqa: E402
+from Make_report_sign_easy.pdf import extract_freetext_positions  # noqa: E402,F401
+from Make_report_sign_easy.pdf.fill import paste_image_centered  # noqa: E402,F401
 from Make_report_sign_easy.services import (  # noqa: E402
     FillDocumentRequest,
     FillDocumentService,
