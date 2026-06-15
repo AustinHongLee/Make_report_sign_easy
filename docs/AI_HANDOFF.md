@@ -130,6 +130,9 @@ GUI(目前散亂,重構主要對象)
 - `src/Make_report_sign_easy/gui/viewmodels/preview_vm.py` ── G2 預覽入口:
   整頁預覽走暫存 PDF + `FillDocumentService`;單欄預覽走 `RenderTextService`
   再由 canvas overlay 顯示。
+- `src/Make_report_sign_easy/gui/viewmodels/profile_vm.py`、`views/profile_drawer.py`
+  ── G3 手寫微調抽屜起點,以 `ProfileService` 管 profile、`RenderTextService`
+  產樣字預覽。
 - `src/Make_report_sign_easy/ctk_gui.py`、`config_gui.py`、`config_panel.py`。
 - `tools/main_gui.py`、`tools/ctk_config_gui.py`、`tools/confirm_gui.py`、
   `tools/preview_fonts.py`。

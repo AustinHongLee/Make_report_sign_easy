@@ -4,6 +4,7 @@ from pathlib import Path
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
+    QDockWidget,
     QFileDialog,
     QHBoxLayout,
     QLabel,
@@ -17,10 +18,12 @@ from PySide6.QtWidgets import (
 
 from Make_report_sign_easy.gui.session import AppSession
 from Make_report_sign_easy.gui.theme.tokens import LIGHT_QSS
+from Make_report_sign_easy.gui.viewmodels.profile_vm import ProfileViewModel
 from Make_report_sign_easy.gui.viewmodels.preview_vm import PreviewViewModel
 from Make_report_sign_easy.gui.viewmodels.template_vm import TemplateViewModel
 from Make_report_sign_easy.gui.views.field_inspector import FieldInspector
 from Make_report_sign_easy.gui.views.pdf_canvas import PdfCanvas
+from Make_report_sign_easy.gui.views.profile_drawer import ProfileDrawer
 from Make_report_sign_easy.gui.views.statusbar import ActionStatusBar
 from Make_report_sign_easy.gui.views.workflow_panel import WorkflowPanel
 from Make_report_sign_easy.services import (
@@ -61,6 +64,11 @@ class MainWindow(QMainWindow):
             documents=self.documents,
             renderer=self.renderer,
         )
+        self.profile_vm = ProfileViewModel(
+            self.session,
+            profiles=self.profiles,
+            renderer=self.renderer,
+        )
 
         self.setWindowTitle("HandFont Studio")
         self.resize(1180, 760)
@@ -80,14 +88,17 @@ class MainWindow(QMainWindow):
         self.title_label.setMinimumWidth(360)
         template_button = QPushButton("選範本")
         values_button = QPushButton("載入數值")
+        profile_button = QPushButton("手寫微調")
 
         template_button.clicked.connect(self.choose_template)
         values_button.clicked.connect(self.choose_values)
+        profile_button.clicked.connect(self.toggle_profile_drawer)
 
         toolbar.addWidget(self.title_label)
         toolbar.addSeparator()
         toolbar.addWidget(template_button)
         toolbar.addWidget(values_button)
+        toolbar.addWidget(profile_button)
 
     def _build_layout(self) -> None:
         root = QWidget()
@@ -104,6 +115,13 @@ class MainWindow(QMainWindow):
         self.canvas = PdfCanvas(self.template_vm.select_key)
         self.field_inspector = FieldInspector(self.template_vm)
         self.status_bar = ActionStatusBar()
+        self.profile_drawer = ProfileDrawer(self.profile_vm)
+        self.profile_dock = QDockWidget("手寫微調", self)
+        self.profile_dock.setObjectName("ProfileDock")
+        self.profile_dock.setWidget(self.profile_drawer)
+        self.profile_dock.setAllowedAreas(Qt.DockWidgetArea.RightDockWidgetArea)
+        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.profile_dock)
+        self.profile_dock.hide()
 
         body_layout.addWidget(self.workflow_panel)
         body_layout.addWidget(self.canvas, 1)
@@ -124,6 +142,7 @@ class MainWindow(QMainWindow):
         self.preview_vm.full_preview_ready.connect(self._show_full_preview)
         self.preview_vm.field_preview_ready.connect(self.canvas.set_field_preview)
         self.preview_vm.error.connect(self._show_error)
+        self.profile_vm.error.connect(self._show_error)
         self.field_inspector.field_preview_requested.connect(self.preview_selected_field)
         self.status_bar.preview_requested.connect(self.generate_full_preview)
         self.status_bar.export_requested.connect(self.export_dialog)
@@ -169,6 +188,12 @@ class MainWindow(QMainWindow):
 
     def preview_selected_field(self):
         return self.preview_vm.preview_selected_field()
+
+    def render_profile_sample(self):
+        return self.profile_vm.render_sample()
+
+    def toggle_profile_drawer(self) -> None:
+        self.profile_dock.setVisible(not self.profile_dock.isVisible())
 
     def export_pdf(self, output_path: str | Path, *, notify: bool = True):
         if self.session.template is None:

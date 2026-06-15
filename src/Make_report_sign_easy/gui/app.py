@@ -16,6 +16,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--values", default=None, help="Optional values JSON to load")
     parser.add_argument("--smoke", action="store_true", help="Run a no-event-loop GUI smoke")
     parser.add_argument("--smoke-preview", action="store_true", help="Generate full and field previews in smoke mode")
+    parser.add_argument("--smoke-profile", action="store_true", help="Render the profile drawer sample in smoke mode")
     parser.add_argument("--smoke-output", default=None, help="Optional PDF output for smoke mode")
     return parser
 
@@ -34,9 +35,12 @@ def main(argv: list[str] | None = None) -> int:
         window.load_values(Path(args.values))
     preview_path = None
     field_preview = None
+    profile_sample = None
     if args.smoke_preview:
         preview_path = window.generate_full_preview()
         field_preview = window.preview_selected_field()
+    if args.smoke_profile:
+        profile_sample = window.render_profile_sample()
     if args.smoke_output:
         window.export_pdf(Path(args.smoke_output), notify=False)
 
@@ -46,10 +50,11 @@ def main(argv: list[str] | None = None) -> int:
         complete = bool(window.session.inspection and window.session.inspection.is_complete)
         preview_ok = bool(preview_path and preview_path.exists())
         field_preview_ok = field_preview is not None
+        profile_ok = profile_sample is not None
         print(
             "GUI smoke OK "
             f"fields={fields} values={values} complete={complete} "
-            f"preview={preview_ok} field_preview={field_preview_ok}"
+            f"preview={preview_ok} field_preview={field_preview_ok} profile={profile_ok}"
         )
         window.close()
         app.quit()
