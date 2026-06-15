@@ -1,7 +1,8 @@
 # Docs
 
-- logs/: 工作日誌與交接文件（DAILY_LOG_*）
-- PROJECT_STRUCTURE.md: 專案結構與路線圖
-- DEVELOPMENT_GUIDE.md: 進階開發指引
-
-本資料夾用來集中說明與日誌，讓專案根目錄更乾淨。
+- `AI_HANDOFF.md` - start here for current state, commands, and code anchors.
+- `UI_REDESIGN_BRIEF.md` - product/UX direction for rebuilding the UI.
+- `PROJECT_STRUCTURE.md` - current repository layout and conventions.
+- `FONT_LICENSES.md` - font sources and license notes.
+- `images/` - README screenshots and visual references.
+- `archive/logs/` - old working notes kept for archaeology only.

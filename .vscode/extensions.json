@@ -1,7 +1,0 @@
-{
-  "recommendations": [
-    "ms-python.python",
-    "charliermarsh.ruff",
-    "batisteo.vscode-django" // optional: python templates support
-  ]
-}

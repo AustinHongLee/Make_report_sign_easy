@@ -5,14 +5,12 @@ import io
 import argparse
 import fitz  # PyMuPDF
 
-# 允許直接以腳本執行：加入專案上層到 sys.path，改用絕對匯入
-if __name__ == "__main__" and __package__ is None:
-    here = os.path.dirname(__file__)
-    repo_root = os.path.abspath(os.path.join(here, "..", ".."))
-    src_root = os.path.join(repo_root, "src")
-    if os.path.isdir(src_root):
-        sys.path.insert(0, src_root)
-    sys.path.insert(0, repo_root)
+# Allow direct execution and import from the root tools package.
+repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+src_root = os.path.join(repo_root, "src")
+if os.path.isdir(src_root) and src_root not in sys.path:
+    sys.path.insert(0, src_root)
+
 try:
     # Prefer installed package-style import
     from Make_report_sign_easy import builder as _builder  # type: ignore
@@ -20,6 +18,10 @@ except Exception:  # Fallback to repo-local module import
     import builder as _builder  # type: ignore
 
 generate_text_image = _builder.generate_text_image
+
+
+def _console_text(value):
+    return str(value).encode("ascii", "backslashreplace").decode("ascii")
 
 
 def extract_freetext_positions(pdf_path):
@@ -118,8 +120,8 @@ def main():
     doc.close()
 
     if missing:
-        print("Warning: missing fields:", ", ".join(missing))
-    print(f"Saved output: {args.output}")
+        print("Warning: missing fields:", _console_text(", ".join(missing)))
+    print(f"Saved output: {_console_text(args.output)}")
 
 
 if __name__ == "__main__":

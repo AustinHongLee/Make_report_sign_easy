@@ -5,11 +5,10 @@ from PIL import Image, ImageTk
 
 # src layout優先
 import sys
-repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 src_root = os.path.join(repo_root, "src")
 if os.path.isdir(src_root):
     sys.path.insert(0, src_root)
-sys.path.insert(0, repo_root)
 
 from Make_report_sign_easy.builder import generate_text_image
 from Make_report_sign_easy import config

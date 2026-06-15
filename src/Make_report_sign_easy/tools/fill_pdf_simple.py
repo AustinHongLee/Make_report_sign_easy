@@ -28,6 +28,10 @@ except Exception:
 generate_text_image = _builder.generate_text_image
 
 
+def _console_text(value):
+    return str(value).encode("ascii", "backslashreplace").decode("ascii")
+
+
 def extract_freetext_positions(pdf_path):
     doc = fitz.open(pdf_path)
     page = doc[0]
@@ -115,8 +119,8 @@ def main():
     doc.close()
 
     if missing:
-        print("Warning: missing fields:", ", ".join(missing))
-    print(f"Saved output: {args.output}")
+        print("Warning: missing fields:", _console_text(", ".join(missing)))
+    print(f"Saved output: {_console_text(args.output)}")
 
 
 if __name__ == "__main__":

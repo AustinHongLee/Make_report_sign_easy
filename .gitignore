@@ -1,6 +1,14 @@
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+.pytest_cache/
+.continue/
+.vscode/
+
 demo_output/
 previews/
+confirm/
+src/Make_report_sign_easy/demo_output/
+src/Make_report_sign_easy/confirm/
 
 project_structure.txt

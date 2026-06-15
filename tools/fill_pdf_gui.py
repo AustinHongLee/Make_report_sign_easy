@@ -9,13 +9,11 @@ import customtkinter as ctk
 import fitz  # PyMuPDF
 from PIL import Image, ImageTk, ImageFilter
 
-if __name__ == "__main__" and __package__ is None:
-    # 允許直接以腳本執行；優先使用 src 佈局（若存在），再回退到專案根
-    repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-    src_root = os.path.join(repo_root, "src")
-    if os.path.isdir(src_root):
-        sys.path.insert(0, src_root)
-    sys.path.insert(0, repo_root)
+# Allow direct execution and import from the root tools package.
+repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+src_root = os.path.join(repo_root, "src")
+if os.path.isdir(src_root) and src_root not in sys.path:
+    sys.path.insert(0, src_root)
 
 from Make_report_sign_easy.builder import generate_text_image
 from Make_report_sign_easy.config_panel import ConfigPanel

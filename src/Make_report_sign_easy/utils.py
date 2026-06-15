@@ -16,7 +16,7 @@ def get_image_filename(ch):
 
 def sanitize_filename_char(c):
     """
-    ✅ 防止字元不合法作為檔名（如 : / \ ? * 等）
+    ✅ 防止字元不合法作為檔名（如 : / \\ ? * 等）
     若屬於特殊符號也會轉為 UXXXX 編碼
     """
     return f'U{ord(c):04X}' if c in config.SPECIAL_RENDER_OVERRIDES or c in '<>:"/\\|?*' else c

@@ -5,12 +5,11 @@ from tkinter import ttk, messagebox
 
 # src layout 優先
 repo_root = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "..", "..")
+    os.path.join(os.path.dirname(__file__), "..")
 )
 src_root = os.path.join(repo_root, "src")
 if os.path.isdir(src_root):
     sys.path.insert(0, src_root)
-sys.path.insert(0, repo_root)
 
 
 class MainApp(tk.Tk):
