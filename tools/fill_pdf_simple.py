@@ -118,8 +118,8 @@ def main():
     doc.close()
 
     if missing:
-        print("⚠️ 無對應欄位：", ", ".join(missing))
-    print(f"✅ 已輸出：{args.output}")
+        print("Warning: missing fields:", ", ".join(missing))
+    print(f"Saved output: {args.output}")
 
 
 if __name__ == "__main__":
