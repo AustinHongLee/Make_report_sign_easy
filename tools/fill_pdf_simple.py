@@ -1,79 +1,19 @@
+"""Development wrapper for the packaged PDF fill CLI."""
+
+from __future__ import annotations
+
 import os
 import sys
-import argparse
-from pathlib import Path
 
-# Allow direct execution and import from the root tools package.
-repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-src_root = os.path.join(repo_root, "src")
-if os.path.isdir(src_root) and src_root not in sys.path:
-    sys.path.insert(0, src_root)
+
+REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+SRC_ROOT = os.path.join(REPO_ROOT, "src")
+if os.path.isdir(SRC_ROOT) and SRC_ROOT not in sys.path:
+    sys.path.insert(0, SRC_ROOT)
 
 from Make_report_sign_easy.pdf import extract_freetext_positions  # noqa: E402,F401
 from Make_report_sign_easy.pdf.fill import paste_image_centered  # noqa: E402,F401
-from Make_report_sign_easy.services import (  # noqa: E402
-    FillDocumentRequest,
-    FillDocumentService,
-)
-
-
-def _console_text(value):
-    return str(value).encode("ascii", "backslashreplace").decode("ascii")
-
-
-def main():
-    parser = argparse.ArgumentParser(
-        description=(
-            "Fill a PDF template using FreeText annotation keys and hand-"
-            "written style text images."
-        )
-    )
-    parser.add_argument(
-        "--template", required=True, help="Path to the PDF template"
-    )
-    parser.add_argument(
-        "--output", required=True, help="Path to save the filled PDF"
-    )
-    parser.add_argument(
-        "--values", required=True,
-        help="Path to JSON mapping: {field_key: text}"
-    )
-    parser.add_argument(
-        "--clear-annots", action="store_true",
-        help="Remove annotations after insertion"
-    )
-    parser.add_argument(
-        "--random", action="store_true",
-        help="Enable random jitter for each character"
-    )
-    parser.add_argument(
-        "--seed", type=int, default=None,
-        help="Seed the renderer randomness for reproducible smoke/golden runs"
-    )
-    args = parser.parse_args()
-
-    if not os.path.exists(args.template):
-        raise FileNotFoundError(args.template)
-    if not os.path.exists(args.values):
-        raise FileNotFoundError(args.values)
-
-    result = FillDocumentService().run(
-        FillDocumentRequest(
-            template_path=Path(args.template),
-            values_path=Path(args.values),
-            output_path=Path(args.output),
-            clear_annots=args.clear_annots,
-            random=args.random,
-            seed=args.seed,
-        )
-    )
-
-    if result.missing_fields:
-        print(
-            "Warning: missing fields:",
-            _console_text(", ".join(result.missing_fields)),
-        )
-    print(f"Saved output: {_console_text(result.output_path)}")
+from Make_report_sign_easy.tools.fill_pdf_simple import main  # noqa: E402
 
 
 if __name__ == "__main__":

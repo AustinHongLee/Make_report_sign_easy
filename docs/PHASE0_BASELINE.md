@@ -5,10 +5,10 @@ phases.
 
 ## Canonical Decisions
 
-- CLI behavior is currently equivalent between the root development script
+- CLI behavior is currently equivalent between the root development wrapper
   `tools/fill_pdf_simple.py` and the packaged module
-  `src/Make_report_sign_easy/tools/fill_pdf_simple.py`; both now call
-  `FillDocumentService`.
+  `src/Make_report_sign_easy/tools/fill_pdf_simple.py`; the root path delegates
+  to the packaged CLI, which calls `FillDocumentService`.
 - GUI behavior is not equivalent. The root development GUI
   `tools/fill_pdf_gui.py` is the current functional superset and must be treated
   as the canonical behavior source until its root-only features are migrated.
@@ -19,7 +19,7 @@ phases.
 
 ## Tool Duplication Snapshot
 
-- `tools/fill_pdf_simple.py`: 80 lines.
+- `tools/fill_pdf_simple.py`: 20 lines(wrapper).
 - `src/Make_report_sign_easy/tools/fill_pdf_simple.py`: 84 lines.
 - `tools/fill_pdf_gui.py`: 1279 lines.
 - `src/Make_report_sign_easy/tools/fill_pdf_gui.py`: 484 lines.

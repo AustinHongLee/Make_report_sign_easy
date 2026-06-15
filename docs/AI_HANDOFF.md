@@ -108,8 +108,9 @@ PDF 填寫
 - `src/Make_report_sign_easy/tools/fill_pdf_simple.py` ── 進入點 `handfont-fill-pdf`
   的薄 CLI。
 - `src/Make_report_sign_easy/tools/fill_pdf_gui.py` ── 打包版 PDF 填寫 GUI。
-- `tools/fill_pdf_simple.py`、`tools/fill_pdf_gui.py` ── 根目錄薄啟動器,直接 import
-  `src/`,方便開發時直接跑。
+- `tools/fill_pdf_simple.py` ── 根目錄薄啟動器,只把 `src/` 放進 path 後交給
+  package CLI。
+- `tools/fill_pdf_gui.py` ── 根目錄 legacy GUI,目前仍是較完整的 GUI 行為來源。
 
 GUI(目前散亂,重構主要對象)
 - `src/Make_report_sign_easy/ctk_gui.py`、`config_gui.py`、`config_panel.py`。
