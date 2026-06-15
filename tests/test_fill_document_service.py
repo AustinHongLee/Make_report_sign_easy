@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 
 import fitz
+from PIL import Image
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -87,3 +88,32 @@ def test_fill_document_service_accepts_in_memory_values(tmp_path):
     assert result.missing_fields == ()
     assert len(result.filled_fields) == len(expected["template_field_keys"])
     assert _page_render_hash(output_path) == expected["filled_pdf_render"]
+
+
+def test_fill_document_service_uses_injected_renderer(tmp_path):
+    values = json.loads(VALUES.read_text(encoding="utf-8"))
+    output_path = tmp_path / "service-with-fake-renderer.pdf"
+
+    class FakeRenderer:
+        def __init__(self):
+            self.texts = []
+
+        def run(self, request):
+            self.texts.append(request.text)
+            return Image.new("RGBA", (16, 8), (0, 0, 0, 255))
+
+    renderer = FakeRenderer()
+
+    result = FillDocumentService(renderer=renderer).run(
+        FillDocumentRequest(
+            template_path=TEMPLATE,
+            values=values,
+            output_path=output_path,
+            clear_annots=True,
+            seed=0,
+        )
+    )
+
+    assert output_path.exists()
+    assert result.missing_fields == ()
+    assert set(renderer.texts) == {str(value) for value in values.values()}

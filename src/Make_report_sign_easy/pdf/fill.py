@@ -2,12 +2,11 @@ from __future__ import annotations
 
 from pathlib import Path
 import random as random_module
-from typing import Mapping
+from typing import Any, Callable, Mapping
 import io
 
 import fitz
 
-from Make_report_sign_easy.builder import generate_text_image
 from Make_report_sign_easy.core import RenderProfile
 
 from .models import FillResult
@@ -43,6 +42,7 @@ def fill_pdf(
     seed: int | None = None,
     profile: RenderProfile | None = None,
     page_index: int = 0,
+    render_text: Callable[[str], Any] | None = None,
 ) -> FillResult:
     """Fill one PDF page using FreeText annotation keys and value mapping."""
     if seed is not None:
@@ -55,6 +55,7 @@ def fill_pdf(
         raise FileNotFoundError(template_path)
 
     pos_map = extract_freetext_positions(template_path, page_index=page_index)
+    renderer = render_text or _legacy_render_text(random=random, profile=profile)
 
     doc = fitz.open(template_path)
     try:
@@ -71,11 +72,7 @@ def fill_pdf(
             if rect is None:
                 missing.append(key)
                 continue
-            img = generate_text_image(
-                str(text),
-                random=random,
-                profile=profile,
-            )
+            img = renderer(str(text))
             if img:
                 paste_image_centered(page, rect, img)
                 filled.append(key)
@@ -89,3 +86,16 @@ def fill_pdf(
         filled_fields=tuple(filled),
         missing_fields=tuple(missing),
     )
+
+
+def _legacy_render_text(
+    *,
+    random: bool,
+    profile: RenderProfile | None,
+) -> Callable[[str], Any]:
+    def render(text: str) -> Any:
+        from Make_report_sign_easy.builder import generate_text_image
+
+        return generate_text_image(text, random=random, profile=profile)
+
+    return render

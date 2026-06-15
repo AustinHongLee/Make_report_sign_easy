@@ -7,6 +7,7 @@ from typing import Mapping
 from Make_report_sign_easy.core import RenderProfile
 from Make_report_sign_easy.pdf.fill import fill_pdf
 from Make_report_sign_easy.pdf.models import FillResult
+from Make_report_sign_easy.services.render_text import RenderTextRequest, RenderTextService
 from Make_report_sign_easy.services.values import ValueSetService
 
 
@@ -25,8 +26,13 @@ class FillDocumentRequest:
 class FillDocumentService:
     """Use-case service for filling a PDF from a JSON value mapping."""
 
-    def __init__(self, value_sets: ValueSetService | None = None) -> None:
+    def __init__(
+        self,
+        value_sets: ValueSetService | None = None,
+        renderer: RenderTextService | None = None,
+    ) -> None:
         self.value_sets = value_sets or ValueSetService()
+        self.renderer = renderer or RenderTextService()
 
     def run(self, request: FillDocumentRequest) -> FillResult:
         if request.values is None:
@@ -36,6 +42,15 @@ class FillDocumentService:
         else:
             values = request.values
 
+        def render_text(text: str):
+            return self.renderer.run(
+                RenderTextRequest(
+                    text,
+                    random=request.random,
+                    profile=request.profile,
+                )
+            )
+
         return fill_pdf(
             template_path=request.template_path,
             values=values,
@@ -44,4 +59,5 @@ class FillDocumentService:
             random=request.random,
             seed=request.seed,
             profile=request.profile,
+            render_text=render_text,
         )

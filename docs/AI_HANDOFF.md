@@ -111,7 +111,8 @@ PDF 填寫
 - `src/Make_report_sign_easy/services/values.py` ── `ValueSetService`,負責讀取與驗證
   JSON 欄位值 mapping。
 - `src/Make_report_sign_easy/pdf/template.py`、`pdf/fill.py` ── FreeText 欄位偵測、
-  PDF 影像置入與匯出 adapter。
+  PDF 影像置入與匯出 adapter;正常路徑由 `FillDocumentService` 注入
+  `RenderTextService`,避免 PDF 層直接依賴渲染核心。
 - `src/Make_report_sign_easy/tools/fill_pdf_simple.py` ── 進入點 `handfont-fill-pdf`
   的薄 CLI。
 - `src/Make_report_sign_easy/tools/fill_pdf_batch.py` ── 進入點
