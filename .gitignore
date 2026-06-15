@@ -4,6 +4,9 @@ __pycache__/
 .pytest_cache/
 .continue/
 .vscode/
+build/
+dist/
+*.egg-info/
 
 demo_output/
 previews/
