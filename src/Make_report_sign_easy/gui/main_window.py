@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
 
 from Make_report_sign_easy.gui.session import AppSession
 from Make_report_sign_easy.gui.theme.tokens import LIGHT_QSS
+from Make_report_sign_easy.gui.viewmodels.preview_vm import PreviewViewModel
 from Make_report_sign_easy.gui.viewmodels.template_vm import TemplateViewModel
 from Make_report_sign_easy.gui.views.field_inspector import FieldInspector
 from Make_report_sign_easy.gui.views.pdf_canvas import PdfCanvas
@@ -26,6 +27,7 @@ from Make_report_sign_easy.services import (
     FillDocumentRequest,
     FillDocumentService,
     ProfileService,
+    RenderTextService,
     TemplateService,
     ValueSetService,
 )
@@ -42,15 +44,22 @@ class MainWindow(QMainWindow):
         value_sets: ValueSetService | None = None,
         profiles: ProfileService | None = None,
         documents: FillDocumentService | None = None,
+        renderer: RenderTextService | None = None,
     ) -> None:
         super().__init__()
         self.profiles = profiles or ProfileService()
         self.session = session or AppSession(profile=self.profiles.default_profile())
         self.documents = documents or FillDocumentService()
+        self.renderer = renderer or RenderTextService()
         self.template_vm = TemplateViewModel(
             self.session,
             templates=templates,
             value_sets=value_sets,
+        )
+        self.preview_vm = PreviewViewModel(
+            self.session,
+            documents=self.documents,
+            renderer=self.renderer,
         )
 
         self.setWindowTitle("HandFont Studio")
@@ -112,6 +121,11 @@ class MainWindow(QMainWindow):
         self.template_vm.inspection_changed.connect(self.status_bar.set_inspection)
         self.template_vm.selected_key_changed.connect(self.canvas.set_selected_key)
         self.template_vm.error.connect(self._show_error)
+        self.preview_vm.full_preview_ready.connect(self._show_full_preview)
+        self.preview_vm.field_preview_ready.connect(self.canvas.set_field_preview)
+        self.preview_vm.error.connect(self._show_error)
+        self.field_inspector.field_preview_requested.connect(self.preview_selected_field)
+        self.status_bar.preview_requested.connect(self.generate_full_preview)
         self.status_bar.export_requested.connect(self.export_dialog)
 
     def choose_template(self) -> None:
@@ -150,6 +164,12 @@ class MainWindow(QMainWindow):
     def load_values(self, path: str | Path) -> None:
         self.template_vm.load_values(path)
 
+    def generate_full_preview(self) -> Path | None:
+        return self.preview_vm.generate_full_preview()
+
+    def preview_selected_field(self):
+        return self.preview_vm.preview_selected_field()
+
     def export_pdf(self, output_path: str | Path, *, notify: bool = True):
         if self.session.template is None:
             self._show_error("請先載入 PDF 範本")
@@ -172,6 +192,9 @@ class MainWindow(QMainWindow):
                 f"已匯出: {result.output_path}\n缺漏欄位: {len(result.missing_fields)}",
             )
         return result
+
+    def _show_full_preview(self, path, _result) -> None:
+        self.canvas.set_preview_pdf(path)
 
     def _set_template_title(self, template) -> None:
         self.title_label.setText(f"HandFont Studio · {template.path.name}")

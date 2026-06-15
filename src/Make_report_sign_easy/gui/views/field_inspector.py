@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QCheckBox, QFrame, QLabel, QLineEdit, QPushButton, QVBoxLayout
 
 
 class FieldInspector(QFrame):
     """Right panel for the currently selected field."""
+
+    field_preview_requested = Signal()
 
     def __init__(self, view_model) -> None:
         super().__init__()
@@ -35,6 +38,7 @@ class FieldInspector(QFrame):
         layout.addStretch(1)
 
         self.value_edit.editingFinished.connect(self._commit_value)
+        self.preview_button.clicked.connect(self.field_preview_requested.emit)
         self.view_model.selected_key_changed.connect(self.set_selected_key)
         self.view_model.values_changed.connect(self._refresh_value)
 
@@ -62,4 +66,3 @@ class FieldInspector(QFrame):
     def _commit_value(self) -> None:
         if self._current_key is not None:
             self.view_model.set_value(self._current_key, self.value_edit.text())
-

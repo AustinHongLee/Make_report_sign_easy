@@ -127,6 +127,9 @@ GUI(目前散亂,重構主要對象)
 - `src/Make_report_sign_easy/gui/app.py`、`main_window.py` ── PySide6 G0/G1
   工作台殼,已可透過 `TemplateService` 載入欄位、透過 `ValueSetService` 載入
   values、透過 `FillDocumentService` 匯出。
+- `src/Make_report_sign_easy/gui/viewmodels/preview_vm.py` ── G2 預覽入口:
+  整頁預覽走暫存 PDF + `FillDocumentService`;單欄預覽走 `RenderTextService`
+  再由 canvas overlay 顯示。
 - `src/Make_report_sign_easy/ctk_gui.py`、`config_gui.py`、`config_panel.py`。
 - `tools/main_gui.py`、`tools/ctk_config_gui.py`、`tools/confirm_gui.py`、
   `tools/preview_fonts.py`。

@@ -5,6 +5,7 @@ from pathlib import Path
 
 from Make_report_sign_easy.core import RenderProfile
 from Make_report_sign_easy.pdf.models import Template
+from Make_report_sign_easy.pdf.models import FillResult
 from Make_report_sign_easy.services import TemplateInspection
 
 
@@ -18,3 +19,9 @@ class AppSession:
     inspection: TemplateInspection | None = None
     selected_key: str | None = None
     last_output_path: Path | None = None
+    preview_pdf_path: Path | None = None
+    preview_result: FillResult | None = None
+    field_preview_key: str | None = None
+    clear_annots: bool = False
+    random: bool = False
+    seed: int | None = None

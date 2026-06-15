@@ -32,6 +32,7 @@ def test_pyside_gui_smoke_loads_template_and_values(tmp_path):
             str(TEMPLATE),
             "--values",
             str(VALUES),
+            "--smoke-preview",
             "--smoke-output",
             str(output),
         ],
@@ -44,5 +45,8 @@ def test_pyside_gui_smoke_loads_template_and_values(tmp_path):
     )
 
     assert result.returncode == 0, result.stdout + result.stderr
-    assert "GUI smoke OK fields=13 values=13 complete=True" in result.stdout
+    assert (
+        "GUI smoke OK fields=13 values=13 complete=True "
+        "preview=True field_preview=True"
+    ) in result.stdout
     assert output.exists()
