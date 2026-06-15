@@ -66,6 +66,7 @@ python tools\fill_pdf_simple.py `
 | 指令 | 對應 | 用途 |
 | --- | --- | --- |
 | `handfont-fill-pdf` | `Make_report_sign_easy.tools.fill_pdf_simple:main` | 主力 CLI:PDF 填寫 |
+| `handfont-fill-pdf-batch` | `Make_report_sign_easy.tools.fill_pdf_batch:main` | 批次 CLI:一份範本搭配多組 values 產出多份 PDF |
 | `handfont-fill-pdf-gui` | `Make_report_sign_easy.tools.fill_pdf_gui:main` | PDF 填寫 GUI |
 | `handfont-ctk-gui` | `Make_report_sign_easy.ctk_gui:main` | customtkinter 主介面 |
 | `handfont-config-gui` | `Make_report_sign_easy.config_gui:main` | 字型/設定調整 GUI |
@@ -73,6 +74,9 @@ python tools\fill_pdf_simple.py `
 
 CLI 參數(`handfont-fill-pdf`):`--template`、`--output`、`--values`(皆必填)、
 `--clear-annots`(填完移除標註)、`--random`(逐字隨機抖動)。
+
+批次 CLI(`handfont-fill-pdf-batch`)使用 jobs JSON list,每筆 job 需要 `output`,
+並且在 `values` 或 `values_path` 二選一;可選 `seed` 用於重現輸出。
 
 ## 程式碼地圖(Code Anchors)
 
@@ -110,6 +114,8 @@ PDF 填寫
   PDF 影像置入與匯出 adapter。
 - `src/Make_report_sign_easy/tools/fill_pdf_simple.py` ── 進入點 `handfont-fill-pdf`
   的薄 CLI。
+- `src/Make_report_sign_easy/tools/fill_pdf_batch.py` ── 進入點
+  `handfont-fill-pdf-batch` 的薄 CLI。
 - `src/Make_report_sign_easy/tools/fill_pdf_gui.py` ── 打包版 PDF 填寫 GUI。
 - `tools/fill_pdf_simple.py` ── 根目錄薄啟動器,只把 `src/` 放進 path 後交給
   package CLI。
