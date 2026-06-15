@@ -9,6 +9,7 @@ from . import config
 from .extractor import extract_paths, _load_font
 from .transform import perturb, shear, flip_y
 from .utils import get_spacing
+from .core.models import RenderProfile
 
 # 1. 從我們重新命名的檔案中，匯入兩位專家畫師的繪圖能力
 from .draw_cjk import render_cjk_char
@@ -89,10 +90,20 @@ def _apply_overrides(overrides: dict | None):
 
 def generate_text_image(text, font_path=None, size=None, ignore_router=False,
                         clear_cache=False, random=False, random_per=10,
-                        overrides: dict | None = None):
+                        overrides: dict | None = None,
+                        profile: RenderProfile | None = None):
     # 保持數字相關設定最新
     if hasattr(config, "sync_digit_overrides"):
         config.sync_digit_overrides()
+    if profile is not None:
+        profile_overrides = profile.to_config_overrides()
+        if overrides:
+            profile_overrides.update(overrides)
+        overrides = profile_overrides
+        if font_path is None:
+            font_path = profile.font_path
+        if size is None:
+            size = profile.image_size
     if font_path is None:
         font_path = config.FONT_PATH
     if size is None:
