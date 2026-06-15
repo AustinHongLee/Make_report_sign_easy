@@ -92,8 +92,12 @@ CLI 參數(`handfont-fill-pdf`):`--template`、`--output`、`--values`(皆必填
 - `src/Make_report_sign_easy/safe_char_map.py` ── 字元對應/替代處理。
 
 PDF 填寫
+- `src/Make_report_sign_easy/services/fill_document.py` ── headless
+  `FillDocumentService`,目前 root/package CLI 都已呼叫這裡。
+- `src/Make_report_sign_easy/pdf/template.py`、`pdf/fill.py` ── FreeText 欄位偵測、
+  PDF 影像置入與匯出 adapter。
 - `src/Make_report_sign_easy/tools/fill_pdf_simple.py` ── 進入點 `handfont-fill-pdf`
-  的打包實作(CLI 主邏輯)。
+  的薄 CLI。
 - `src/Make_report_sign_easy/tools/fill_pdf_gui.py` ── 打包版 PDF 填寫 GUI。
 - `tools/fill_pdf_simple.py`、`tools/fill_pdf_gui.py` ── 根目錄薄啟動器,直接 import
   `src/`,方便開發時直接跑。

@@ -6,11 +6,8 @@ Minimal CLI: fill a PDF using FreeText annotation keys mapped to handwriting-sty
 """
 import os
 import sys
-import json
-import io
 import argparse
-import random
-import fitz  # PyMuPDF
+from pathlib import Path
 
 # Allow running directly: prefer src on sys.path
 if __name__ == "__main__" and __package__ is None:
@@ -21,49 +18,16 @@ if __name__ == "__main__" and __package__ is None:
         sys.path.insert(0, src_root)
     sys.path.insert(0, repo_root)
 
-try:
-    from Make_report_sign_easy import builder as _builder  # type: ignore
-except Exception:
-    import builder as _builder  # type: ignore
-
-generate_text_image = _builder.generate_text_image
+from Make_report_sign_easy.pdf import extract_freetext_positions  # noqa: E402
+from Make_report_sign_easy.pdf.fill import paste_image_centered  # noqa: E402
+from Make_report_sign_easy.services import (  # noqa: E402
+    FillDocumentRequest,
+    FillDocumentService,
+)
 
 
 def _console_text(value):
     return str(value).encode("ascii", "backslashreplace").decode("ascii")
-
-
-def extract_freetext_positions(pdf_path):
-    doc = fitz.open(pdf_path)
-    page = doc[0]
-    pos_map = {}
-    for annot in page.annots() or []:
-        if annot.type[1] == "FreeText":
-            content = annot.info.get("content", "").strip()
-            if content:
-                pos_map[content] = fitz.Rect(annot.rect)
-    doc.close()
-    return pos_map
-
-
-def paste_image_centered(page, rect, pil_image):
-    # 將 PIL 影像等比縮放，完整落在 rect 內，並置中
-    img_w, img_h = pil_image.size
-    rect_w = rect.width
-    rect_h = rect.height
-    if img_w == 0 or img_h == 0:
-        return
-    scale = min(rect_w / img_w, rect_h / img_h)
-    w = max(1, int(img_w * scale))
-    h = max(1, int(img_h * scale))
-    # 計算置中位置
-    x0 = rect.x0 + (rect_w - w) / 2
-    y0 = rect.y0 + (rect_h - h) / 2
-    x1 = x0 + w
-    y1 = y0 + h
-    buf = io.BytesIO()
-    pil_image.save(buf, format="PNG")
-    page.insert_image(fitz.Rect(x0, y0, x1, y1), stream=buf.getvalue())
 
 
 def main():
@@ -92,45 +56,28 @@ def main():
     )
     args = parser.parse_args()
 
-    if args.seed is not None:
-        random.seed(args.seed)
-
     if not os.path.exists(args.template):
         raise FileNotFoundError(args.template)
     if not os.path.exists(args.values):
         raise FileNotFoundError(args.values)
 
-    with open(args.values, "r", encoding="utf-8") as f:
-        values = json.load(f)
-        if not isinstance(values, dict):
-            raise ValueError("values must be a JSON object mapping {field_key: text}")
+    result = FillDocumentService().run(
+        FillDocumentRequest(
+            template_path=Path(args.template),
+            values_path=Path(args.values),
+            output_path=Path(args.output),
+            clear_annots=args.clear_annots,
+            random=args.random,
+            seed=args.seed,
+        )
+    )
 
-    pos_map = extract_freetext_positions(args.template)
-
-    doc = fitz.open(args.template)
-    page = doc[0]
-
-    # 先清除註解（可選）
-    if args.clear_annots:
-        for annot in page.annots() or []:
-            page.delete_annot(annot)
-
-    missing = []
-    for key, text in values.items():
-        rect = pos_map.get(key)
-        if rect is None:
-            missing.append(key)
-            continue
-        img = generate_text_image(str(text), random=args.random)
-        if img:
-            paste_image_centered(page, rect, img)
-
-    doc.save(args.output, garbage=4, deflate=True)
-    doc.close()
-
-    if missing:
-        print("Warning: missing fields:", _console_text(", ".join(missing)))
-    print(f"Saved output: {_console_text(args.output)}")
+    if result.missing_fields:
+        print(
+            "Warning: missing fields:",
+            _console_text(", ".join(result.missing_fields)),
+        )
+    print(f"Saved output: {_console_text(result.output_path)}")
 
 
 if __name__ == "__main__":
