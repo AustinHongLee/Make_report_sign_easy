@@ -80,6 +80,8 @@ CLI 參數(`handfont-fill-pdf`):`--template`、`--output`、`--values`(皆必填
 - `src/Make_report_sign_easy/core/models.py` ── Phase 1 起點:
   `RenderProfile.from_config(config)` 可凍結現有 render settings,
   `builder.generate_text_image(..., profile=profile)` 已可走相容層。
+- `src/Make_report_sign_easy/services/render_text.py` ── headless
+  `RenderTextService`,提供 UI/CLI 可共用的文字轉手寫影像入口。
 - `src/Make_report_sign_easy/builder.py` ── 公開 API `generate_text_image(...)`、
   `save_text_image(...)`。
 - `src/Make_report_sign_easy/config.py` ── 字型搜尋路徑、router 路由、渲染預設值、

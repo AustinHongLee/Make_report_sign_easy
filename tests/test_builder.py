@@ -14,6 +14,10 @@ if os.path.isdir(_SRC):
 import Make_report_sign_easy.builder as builder  # noqa: E402
 import Make_report_sign_easy.config as config  # noqa: E402
 from Make_report_sign_easy.core import RenderProfile  # noqa: E402
+from Make_report_sign_easy.services import (  # noqa: E402
+    RenderTextRequest,
+    RenderTextService,
+)
 
 
 def _image_hash(img):
@@ -81,3 +85,16 @@ def test_render_profile_jittered_is_reproducible():
 
     assert jittered_a == jittered_b
     assert jittered_a is not profile
+
+
+def test_render_text_service_matches_builder_output():
+    random.seed(0)
+    direct_img = builder.generate_text_image('abc', font_path=config.FONT_PATH)
+
+    random.seed(0)
+    service_img = RenderTextService().run(
+        RenderTextRequest('abc', font_path=config.FONT_PATH)
+    )
+
+    assert isinstance(service_img, Image.Image)
+    assert _image_hash(service_img) == _image_hash(direct_img)
