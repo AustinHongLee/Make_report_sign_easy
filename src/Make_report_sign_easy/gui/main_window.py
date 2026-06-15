@@ -1,0 +1,180 @@
+from __future__ import annotations
+
+from pathlib import Path
+
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import (
+    QFileDialog,
+    QHBoxLayout,
+    QLabel,
+    QMainWindow,
+    QMessageBox,
+    QPushButton,
+    QToolBar,
+    QVBoxLayout,
+    QWidget,
+)
+
+from Make_report_sign_easy.gui.session import AppSession
+from Make_report_sign_easy.gui.theme.tokens import LIGHT_QSS
+from Make_report_sign_easy.gui.viewmodels.template_vm import TemplateViewModel
+from Make_report_sign_easy.gui.views.field_inspector import FieldInspector
+from Make_report_sign_easy.gui.views.pdf_canvas import PdfCanvas
+from Make_report_sign_easy.gui.views.statusbar import ActionStatusBar
+from Make_report_sign_easy.gui.views.workflow_panel import WorkflowPanel
+from Make_report_sign_easy.services import (
+    FillDocumentRequest,
+    FillDocumentService,
+    ProfileService,
+    TemplateService,
+    ValueSetService,
+)
+
+
+class MainWindow(QMainWindow):
+    """G0/G1 PySide6 main workbench."""
+
+    def __init__(
+        self,
+        *,
+        session: AppSession | None = None,
+        templates: TemplateService | None = None,
+        value_sets: ValueSetService | None = None,
+        profiles: ProfileService | None = None,
+        documents: FillDocumentService | None = None,
+    ) -> None:
+        super().__init__()
+        self.profiles = profiles or ProfileService()
+        self.session = session or AppSession(profile=self.profiles.default_profile())
+        self.documents = documents or FillDocumentService()
+        self.template_vm = TemplateViewModel(
+            self.session,
+            templates=templates,
+            value_sets=value_sets,
+        )
+
+        self.setWindowTitle("HandFont Studio")
+        self.resize(1180, 760)
+        self.setMinimumSize(980, 640)
+        self.setStyleSheet(LIGHT_QSS)
+
+        self._build_toolbar()
+        self._build_layout()
+        self._connect_signals()
+
+    def _build_toolbar(self) -> None:
+        toolbar = QToolBar("Main")
+        toolbar.setMovable(False)
+        self.addToolBar(Qt.ToolBarArea.TopToolBarArea, toolbar)
+
+        self.title_label = QLabel("HandFont Studio")
+        self.title_label.setMinimumWidth(360)
+        template_button = QPushButton("選範本")
+        values_button = QPushButton("載入數值")
+
+        template_button.clicked.connect(self.choose_template)
+        values_button.clicked.connect(self.choose_values)
+
+        toolbar.addWidget(self.title_label)
+        toolbar.addSeparator()
+        toolbar.addWidget(template_button)
+        toolbar.addWidget(values_button)
+
+    def _build_layout(self) -> None:
+        root = QWidget()
+        root_layout = QVBoxLayout(root)
+        root_layout.setContentsMargins(12, 12, 12, 12)
+        root_layout.setSpacing(10)
+
+        body = QWidget()
+        body_layout = QHBoxLayout(body)
+        body_layout.setContentsMargins(0, 0, 0, 0)
+        body_layout.setSpacing(10)
+
+        self.workflow_panel = WorkflowPanel()
+        self.canvas = PdfCanvas(self.template_vm.select_key)
+        self.field_inspector = FieldInspector(self.template_vm)
+        self.status_bar = ActionStatusBar()
+
+        body_layout.addWidget(self.workflow_panel)
+        body_layout.addWidget(self.canvas, 1)
+        body_layout.addWidget(self.field_inspector)
+
+        root_layout.addWidget(body, 1)
+        root_layout.addWidget(self.status_bar)
+        self.setCentralWidget(root)
+
+    def _connect_signals(self) -> None:
+        self.template_vm.template_loaded.connect(self.workflow_panel.set_template)
+        self.template_vm.template_loaded.connect(self.canvas.set_template)
+        self.template_vm.template_loaded.connect(self._set_template_title)
+        self.template_vm.inspection_changed.connect(self.workflow_panel.set_inspection)
+        self.template_vm.inspection_changed.connect(self.status_bar.set_inspection)
+        self.template_vm.selected_key_changed.connect(self.canvas.set_selected_key)
+        self.template_vm.error.connect(self._show_error)
+        self.status_bar.export_requested.connect(self.export_dialog)
+
+    def choose_template(self) -> None:
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            "選擇 PDF 範本",
+            "",
+            "PDF files (*.pdf)",
+        )
+        if path:
+            self.load_template(path)
+
+    def choose_values(self) -> None:
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            "載入 values JSON",
+            "",
+            "JSON files (*.json)",
+        )
+        if path:
+            self.load_values(path)
+
+    def export_dialog(self) -> None:
+        path, _ = QFileDialog.getSaveFileName(
+            self,
+            "匯出 PDF",
+            "",
+            "PDF files (*.pdf)",
+        )
+        if path:
+            self.export_pdf(path)
+
+    def load_template(self, path: str | Path) -> None:
+        self.template_vm.load_template(path)
+
+    def load_values(self, path: str | Path) -> None:
+        self.template_vm.load_values(path)
+
+    def export_pdf(self, output_path: str | Path, *, notify: bool = True):
+        if self.session.template is None:
+            self._show_error("請先載入 PDF 範本")
+            return None
+
+        result = self.documents.run(
+            FillDocumentRequest(
+                template_path=self.session.template.path,
+                values=self.session.values,
+                output_path=Path(output_path),
+                profile=self.session.profile,
+                clear_annots=False,
+            )
+        )
+        self.session.last_output_path = result.output_path
+        if notify:
+            QMessageBox.information(
+                self,
+                "匯出完成",
+                f"已匯出: {result.output_path}\n缺漏欄位: {len(result.missing_fields)}",
+            )
+        return result
+
+    def _set_template_title(self, template) -> None:
+        self.title_label.setText(f"HandFont Studio · {template.path.name}")
+
+    def _show_error(self, message: str) -> None:
+        QMessageBox.warning(self, "操作失敗", message)

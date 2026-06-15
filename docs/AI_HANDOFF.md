@@ -71,6 +71,7 @@ python tools\fill_pdf_simple.py `
 | `handfont-ctk-gui` | `Make_report_sign_easy.ctk_gui:main` | customtkinter 主介面 |
 | `handfont-config-gui` | `Make_report_sign_easy.config_gui:main` | 字型/設定調整 GUI |
 | `handfont-demo` | `Make_report_sign_easy.demo:main` | 手寫渲染示範 |
+| `handfont-gui` | `Make_report_sign_easy.gui.app:main` | 新 PySide6 service-backed GUI |
 
 CLI 參數(`handfont-fill-pdf`):`--template`、`--output`、`--values`(皆必填)、
 `--clear-annots`(填完移除標註)、`--random`(逐字隨機抖動)。
@@ -123,6 +124,9 @@ PDF 填寫
 - `tools/fill_pdf_gui.py` ── 根目錄 legacy GUI,目前仍是較完整的 GUI 行為來源。
 
 GUI(目前散亂,重構主要對象)
+- `src/Make_report_sign_easy/gui/app.py`、`main_window.py` ── PySide6 G0/G1
+  工作台殼,已可透過 `TemplateService` 載入欄位、透過 `ValueSetService` 載入
+  values、透過 `FillDocumentService` 匯出。
 - `src/Make_report_sign_easy/ctk_gui.py`、`config_gui.py`、`config_panel.py`。
 - `tools/main_gui.py`、`tools/ctk_config_gui.py`、`tools/confirm_gui.py`、
   `tools/preview_fonts.py`。

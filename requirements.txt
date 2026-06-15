@@ -3,3 +3,4 @@ fonttools
 customtkinter
 packaging
 PyMuPDF
+PySide6

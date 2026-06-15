@@ -16,12 +16,14 @@ dependencies = [
     "customtkinter",
     "packaging",
     "PyMuPDF",
+    "PySide6",
 ]
 
 [project.scripts]
 handfont-demo = "Make_report_sign_easy.demo:main"
 handfont-config-gui = "Make_report_sign_easy.config_gui:main"
 handfont-ctk-gui = "Make_report_sign_easy.ctk_gui:main"
+handfont-gui = "Make_report_sign_easy.gui.app:main"
 handfont-fill-pdf = "Make_report_sign_easy.tools.fill_pdf_simple:main"
 handfont-fill-pdf-batch = "Make_report_sign_easy.tools.fill_pdf_batch:main"
 handfont-fill-pdf-gui = "Make_report_sign_easy.tools.fill_pdf_gui:main"

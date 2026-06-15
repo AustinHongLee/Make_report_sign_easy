@@ -15,6 +15,8 @@ again and again.
 - Renders each value with handwriting fonts, jitter, scaling, blur, and routing.
 - Inserts the rendered images into the matching PDF positions.
 - Provides a legacy Tkinter GUI and a CLI for the same PDF fill path.
+- Starts a new PySide6 GUI shell through `handfont-gui` for the service-backed
+  redesign work.
 
 The current GUI is a prototype. It works, but the layout is cluttered and should
 be redesigned around the main workflow.
@@ -24,7 +26,7 @@ be redesigned around the main workflow.
 ```powershell
 python -m pip install -r requirements.txt
 python -m pip install -e .
-python tools\fill_pdf_gui.py
+handfont-gui
 ```
 
 CLI smoke test:

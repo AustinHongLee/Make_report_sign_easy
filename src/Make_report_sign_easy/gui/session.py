@@ -1,0 +1,20 @@
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from pathlib import Path
+
+from Make_report_sign_easy.core import RenderProfile
+from Make_report_sign_easy.pdf.models import Template
+from Make_report_sign_easy.services import TemplateInspection
+
+
+@dataclass
+class AppSession:
+    """Mutable GUI session state shared by view models."""
+
+    template: Template | None = None
+    values: dict[str, object] = field(default_factory=dict)
+    profile: RenderProfile | None = None
+    inspection: TemplateInspection | None = None
+    selected_key: str | None = None
+    last_output_path: Path | None = None
