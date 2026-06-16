@@ -1,6 +1,7 @@
 # AI 交接前導書
 
 > 下一位接手者請先讀本檔(技術現況、指令、程式碼地圖),再讀
+> `docs/PYSIDE6_IMPLEMENTATION_STATUS.md`(目前 PySide6 可跑狀態),再讀
 > `docs/UI_REDESIGN_BRIEF.md`(UI/UX 重構方向),即可掌握功能、痛點與下一步。
 
 ## 一句話產品
