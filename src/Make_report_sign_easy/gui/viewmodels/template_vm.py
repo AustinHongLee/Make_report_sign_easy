@@ -50,6 +50,7 @@ class TemplateViewModel(QObject):
             self.error.emit(str(exc))
             return
 
+        self.session.values_path = Path(path)
         self.session.values = dict(value_set.values)
         self.values_changed.emit(dict(self.session.values))
         self.inspect()

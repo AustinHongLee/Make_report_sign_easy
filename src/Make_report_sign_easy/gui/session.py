@@ -7,6 +7,7 @@ from Make_report_sign_easy.core import RenderProfile
 from Make_report_sign_easy.pdf.models import Template
 from Make_report_sign_easy.pdf.models import FillResult
 from Make_report_sign_easy.services import TemplateInspection
+from Make_report_sign_easy.services import BatchFillItem, BatchFillResult
 
 
 @dataclass
@@ -15,6 +16,7 @@ class AppSession:
 
     template: Template | None = None
     values: dict[str, object] = field(default_factory=dict)
+    values_path: Path | None = None
     profile: RenderProfile | None = None
     inspection: TemplateInspection | None = None
     selected_key: str | None = None
@@ -22,6 +24,8 @@ class AppSession:
     preview_pdf_path: Path | None = None
     preview_result: FillResult | None = None
     field_preview_key: str | None = None
+    batch_items: list[BatchFillItem] = field(default_factory=list)
+    batch_result: BatchFillResult | None = None
     clear_annots: bool = False
     random: bool = False
     seed: int | None = None

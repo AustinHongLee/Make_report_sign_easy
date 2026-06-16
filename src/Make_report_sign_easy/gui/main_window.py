@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
     QMainWindow,
     QMessageBox,
     QPushButton,
+    QStackedWidget,
     QToolBar,
     QVBoxLayout,
     QWidget,
@@ -18,9 +19,11 @@ from PySide6.QtWidgets import (
 
 from Make_report_sign_easy.gui.session import AppSession
 from Make_report_sign_easy.gui.theme.tokens import LIGHT_QSS
+from Make_report_sign_easy.gui.viewmodels.batch_vm import BatchViewModel
 from Make_report_sign_easy.gui.viewmodels.profile_vm import ProfileViewModel
 from Make_report_sign_easy.gui.viewmodels.preview_vm import PreviewViewModel
 from Make_report_sign_easy.gui.viewmodels.template_vm import TemplateViewModel
+from Make_report_sign_easy.gui.views.batch_workbench import BatchWorkbench
 from Make_report_sign_easy.gui.views.field_inspector import FieldInspector
 from Make_report_sign_easy.gui.views.pdf_canvas import PdfCanvas
 from Make_report_sign_easy.gui.views.profile_drawer import ProfileDrawer
@@ -29,6 +32,7 @@ from Make_report_sign_easy.gui.views.workflow_panel import WorkflowPanel
 from Make_report_sign_easy.services import (
     FillDocumentRequest,
     FillDocumentService,
+    BatchFillService,
     ProfileService,
     RenderTextService,
     TemplateService,
@@ -48,6 +52,7 @@ class MainWindow(QMainWindow):
         profiles: ProfileService | None = None,
         documents: FillDocumentService | None = None,
         renderer: RenderTextService | None = None,
+        batches: BatchFillService | None = None,
     ) -> None:
         super().__init__()
         self.profiles = profiles or ProfileService()
@@ -69,6 +74,10 @@ class MainWindow(QMainWindow):
             profiles=self.profiles,
             renderer=self.renderer,
         )
+        self.batch_vm = BatchViewModel(
+            self.session,
+            batches=batches,
+        )
 
         self.setWindowTitle("HandFont Studio")
         self.resize(1180, 760)
@@ -88,16 +97,23 @@ class MainWindow(QMainWindow):
         self.title_label.setMinimumWidth(360)
         template_button = QPushButton("選範本")
         values_button = QPushButton("載入數值")
+        single_button = QPushButton("單份")
+        batch_button = QPushButton("批次")
         profile_button = QPushButton("手寫微調")
 
         template_button.clicked.connect(self.choose_template)
         values_button.clicked.connect(self.choose_values)
+        single_button.clicked.connect(self.show_single_mode)
+        batch_button.clicked.connect(self.show_batch_mode)
         profile_button.clicked.connect(self.toggle_profile_drawer)
 
         toolbar.addWidget(self.title_label)
         toolbar.addSeparator()
         toolbar.addWidget(template_button)
         toolbar.addWidget(values_button)
+        toolbar.addSeparator()
+        toolbar.addWidget(single_button)
+        toolbar.addWidget(batch_button)
         toolbar.addWidget(profile_button)
 
     def _build_layout(self) -> None:
@@ -113,6 +129,10 @@ class MainWindow(QMainWindow):
 
         self.workflow_panel = WorkflowPanel()
         self.canvas = PdfCanvas(self.template_vm.select_key)
+        self.batch_workbench = BatchWorkbench(self.batch_vm)
+        self.workspace_stack = QStackedWidget()
+        self.workspace_stack.addWidget(self.canvas)
+        self.workspace_stack.addWidget(self.batch_workbench)
         self.field_inspector = FieldInspector(self.template_vm)
         self.status_bar = ActionStatusBar()
         self.profile_drawer = ProfileDrawer(self.profile_vm)
@@ -124,7 +144,7 @@ class MainWindow(QMainWindow):
         self.profile_dock.hide()
 
         body_layout.addWidget(self.workflow_panel)
-        body_layout.addWidget(self.canvas, 1)
+        body_layout.addWidget(self.workspace_stack, 1)
         body_layout.addWidget(self.field_inspector)
 
         root_layout.addWidget(body, 1)
@@ -143,6 +163,7 @@ class MainWindow(QMainWindow):
         self.preview_vm.field_preview_ready.connect(self.canvas.set_field_preview)
         self.preview_vm.error.connect(self._show_error)
         self.profile_vm.error.connect(self._show_error)
+        self.batch_vm.error.connect(self._show_error)
         self.field_inspector.field_preview_requested.connect(self.preview_selected_field)
         self.status_bar.preview_requested.connect(self.generate_full_preview)
         self.status_bar.export_requested.connect(self.export_dialog)
@@ -194,6 +215,18 @@ class MainWindow(QMainWindow):
 
     def toggle_profile_drawer(self) -> None:
         self.profile_dock.setVisible(not self.profile_dock.isVisible())
+
+    def show_single_mode(self) -> None:
+        self.workspace_stack.setCurrentWidget(self.canvas)
+
+    def show_batch_mode(self) -> None:
+        self.workspace_stack.setCurrentWidget(self.batch_workbench)
+
+    def add_batch_current_values(self, output_path: str | Path, *, label: str | None = None, seed: int | None = None):
+        return self.batch_vm.add_current_values(output_path, label=label, seed=seed)
+
+    def run_batch(self):
+        return self.batch_vm.run()
 
     def export_pdf(self, output_path: str | Path, *, notify: bool = True):
         if self.session.template is None:

@@ -133,6 +133,9 @@ GUI(目前散亂,重構主要對象)
 - `src/Make_report_sign_easy/gui/viewmodels/profile_vm.py`、`views/profile_drawer.py`
   ── G3 手寫微調抽屜起點,以 `ProfileService` 管 profile、`RenderTextService`
   產樣字預覽。
+- `src/Make_report_sign_easy/gui/viewmodels/batch_vm.py`、`views/batch_workbench.py`
+  ── G4 批次工作台起點,用目前 in-memory values 建立批次項並呼叫
+  `BatchFillService` 產多份 PDF。
 - `src/Make_report_sign_easy/ctk_gui.py`、`config_gui.py`、`config_panel.py`。
 - `tools/main_gui.py`、`tools/ctk_config_gui.py`、`tools/confirm_gui.py`、
   `tools/preview_fonts.py`。
