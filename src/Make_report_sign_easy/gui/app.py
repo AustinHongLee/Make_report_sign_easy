@@ -57,7 +57,7 @@ def main(argv: list[str] | None = None) -> int:
     field_preview = None
     profile_sample = None
     if args.smoke_preview:
-        preview_path = window.generate_full_preview()
+        preview_path = window.generate_full_preview(blocking=True)
         field_preview = window.preview_selected_field()
     if args.smoke_profile:
         profile_sample = window.render_profile_sample()
@@ -68,9 +68,9 @@ def main(argv: list[str] | None = None) -> int:
         window.show_batch_mode()
         window.add_batch_current_values(batch_dir / "batch-1.pdf", label="batch-1", seed=0)
         window.add_batch_current_values(batch_dir / "batch-2.pdf", label="batch-2", seed=0)
-        batch_result = window.run_batch()
+        batch_result = window.run_batch(blocking=True)
     if args.smoke_output:
-        window.export_pdf(Path(args.smoke_output), notify=False)
+        window.export_pdf(Path(args.smoke_output), blocking=True, notify=False)
 
     if args.smoke:
         screenshot_ok = False

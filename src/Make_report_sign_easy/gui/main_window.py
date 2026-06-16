@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QThreadPool, QUrl
+from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (
     QDockWidget,
     QFileDialog,
@@ -19,10 +20,12 @@ from PySide6.QtWidgets import (
 
 from Make_report_sign_easy.gui.session import AppSession
 from Make_report_sign_easy.gui.theme.tokens import LIGHT_QSS
+from Make_report_sign_easy.gui.viewmodels.export_vm import ExportViewModel
 from Make_report_sign_easy.gui.viewmodels.batch_vm import BatchViewModel
 from Make_report_sign_easy.gui.viewmodels.profile_vm import ProfileViewModel
 from Make_report_sign_easy.gui.viewmodels.preview_vm import PreviewViewModel
 from Make_report_sign_easy.gui.viewmodels.template_vm import TemplateViewModel
+from Make_report_sign_easy.gui.workers.task_runner import FunctionTask
 from Make_report_sign_easy.gui.views.batch_workbench import BatchWorkbench
 from Make_report_sign_easy.gui.views.field_inspector import FieldInspector
 from Make_report_sign_easy.gui.views.pdf_canvas import PdfCanvas
@@ -30,7 +33,6 @@ from Make_report_sign_easy.gui.views.profile_drawer import ProfileDrawer
 from Make_report_sign_easy.gui.views.statusbar import ActionStatusBar
 from Make_report_sign_easy.gui.views.workflow_panel import WorkflowPanel
 from Make_report_sign_easy.services import (
-    FillDocumentRequest,
     FillDocumentService,
     BatchFillService,
     ProfileService,
@@ -59,6 +61,8 @@ class MainWindow(QMainWindow):
         self.session = session or AppSession(profile=self.profiles.default_profile())
         self.documents = documents or FillDocumentService()
         self.renderer = renderer or RenderTextService()
+        self.thread_pool = QThreadPool.globalInstance()
+        self._active_tasks: set[FunctionTask] = set()
         self.template_vm = TemplateViewModel(
             self.session,
             templates=templates,
@@ -68,6 +72,10 @@ class MainWindow(QMainWindow):
             self.session,
             documents=self.documents,
             renderer=self.renderer,
+        )
+        self.export_vm = ExportViewModel(
+            self.session,
+            documents=self.documents,
         )
         self.profile_vm = ProfileViewModel(
             self.session,
@@ -164,6 +172,8 @@ class MainWindow(QMainWindow):
         self.preview_vm.full_preview_ready.connect(lambda *_: self.workflow_panel.set_preview_ready())
         self.preview_vm.field_preview_ready.connect(self.canvas.set_field_preview)
         self.preview_vm.error.connect(self._show_error)
+        self.export_vm.export_finished.connect(self._show_export_finished)
+        self.export_vm.error.connect(self._show_error)
         self.profile_vm.error.connect(self._show_error)
         self.batch_vm.error.connect(self._show_error)
         self.batch_vm.batch_finished.connect(lambda *_: self.workflow_panel.set_export_ready())
@@ -212,8 +222,13 @@ class MainWindow(QMainWindow):
     def load_values(self, path: str | Path) -> None:
         self.template_vm.load_values(path)
 
-    def generate_full_preview(self) -> Path | None:
-        return self.preview_vm.generate_full_preview()
+    def generate_full_preview(self, *, blocking: bool = False) -> Path | None:
+        if blocking:
+            return self.preview_vm.generate_full_preview()
+
+        task = FunctionTask(self.preview_vm.generate_full_preview)
+        self._start_task(task, message="整頁預覽產生中...")
+        return None
 
     def preview_selected_field(self):
         return self.preview_vm.preview_selected_field()
@@ -239,38 +254,68 @@ class MainWindow(QMainWindow):
     def add_batch_current_values(self, output_path: str | Path, *, label: str | None = None, seed: int | None = None):
         return self.batch_vm.add_current_values(output_path, label=label, seed=seed)
 
-    def run_batch(self):
-        return self.batch_vm.run()
+    def run_batch(self, *, blocking: bool = False):
+        if blocking:
+            return self.batch_vm.run()
 
-    def export_pdf(self, output_path: str | Path, *, notify: bool = True):
-        if self.session.template is None:
-            self._show_error("請先載入 PDF 範本")
-            return None
+        task = FunctionTask(self.batch_vm.run)
+        self._start_task(task, message="批次執行中...", batch_busy=True)
+        return None
 
-        result = self.documents.run(
-            FillDocumentRequest(
-                template_path=self.session.template.path,
-                values=self.session.values,
-                output_path=Path(output_path),
-                profile=self.session.profile,
-                clear_annots=False,
-            )
-        )
-        self.session.last_output_path = result.output_path
-        self.workflow_panel.set_export_ready()
-        if notify:
-            QMessageBox.information(
-                self,
-                "匯出完成",
-                f"已匯出: {result.output_path}\n缺漏欄位: {len(result.missing_fields)}",
-            )
-        return result
+    def export_pdf(self, output_path: str | Path, *, blocking: bool = False, notify: bool = True):
+        if blocking:
+            return self.export_vm.export_pdf(output_path, emit_signal=notify)
+
+        task = FunctionTask(lambda: self.export_vm.export_pdf(output_path))
+        self._start_task(task, message="匯出 PDF 中...")
+        return None
 
     def _show_full_preview(self, path, _result) -> None:
         self.canvas.set_preview_pdf(path)
+
+    def _show_export_finished(self, result) -> None:
+        self.workflow_panel.set_export_ready()
+        message = QMessageBox(self)
+        message.setIcon(QMessageBox.Icon.Information)
+        message.setWindowTitle("匯出完成")
+        message.setText(f"已匯出: {result.output_path}\n缺漏欄位: {len(result.missing_fields)}")
+        open_file = message.addButton("開啟檔案", QMessageBox.ButtonRole.ActionRole)
+        open_folder = message.addButton("開資料夾", QMessageBox.ButtonRole.ActionRole)
+        message.addButton(QMessageBox.StandardButton.Ok)
+        message.exec()
+        clicked = message.clickedButton()
+        if clicked == open_file:
+            QDesktopServices.openUrl(QUrl.fromLocalFile(str(result.output_path)))
+        elif clicked == open_folder:
+            QDesktopServices.openUrl(QUrl.fromLocalFile(str(result.output_path.parent)))
 
     def _set_template_title(self, template) -> None:
         self.title_label.setText(f"HandFont Studio · {template.path.name}")
 
     def _show_error(self, message: str) -> None:
         QMessageBox.warning(self, "操作失敗", message)
+
+    def _start_task(self, task: FunctionTask, *, message: str, batch_busy: bool = False) -> None:
+        self._active_tasks.add(task)
+        task.signals.started.connect(lambda: self._set_busy(True, message, batch_busy=batch_busy))
+        task.signals.done.connect(lambda _result, current=task: self._finish_task(current, batch_busy=batch_busy))
+        task.signals.error.connect(self._show_error)
+        task.signals.error.connect(lambda _message, current=task: self._finish_task(current, batch_busy=batch_busy))
+        self.thread_pool.start(task)
+
+    def _finish_task(self, task: FunctionTask, *, batch_busy: bool = False) -> None:
+        self._active_tasks.discard(task)
+        self._set_busy(False, "", batch_busy=batch_busy)
+
+    def _set_busy(self, busy: bool, message: str, *, batch_busy: bool = False) -> None:
+        if busy:
+            self.status_bar.set_busy(True, message)
+            if batch_busy:
+                self.batch_workbench.set_busy(True)
+            return
+
+        if self.workspace_stack.currentWidget() is self.batch_workbench:
+            self.status_bar.set_batch_mode(len(self.session.batch_items))
+            self.batch_workbench.set_busy(False)
+        else:
+            self.status_bar.set_single_mode(self.session.inspection)

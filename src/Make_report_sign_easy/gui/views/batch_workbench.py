@@ -28,18 +28,18 @@ class BatchWorkbench(QWidget):
 
         header = QHBoxLayout()
         title = QLabel("批次工作台")
-        add_button = QPushButton("加入目前 values")
-        import_button = QPushButton("從多個 JSON 匯入")
-        clear_button = QPushButton("清空")
-        run_button = QPushButton("執行批次")
-        run_button.setObjectName("PrimaryButton")
+        self.add_button = QPushButton("加入目前 values")
+        self.import_button = QPushButton("從多個 JSON 匯入")
+        self.clear_button = QPushButton("清空")
+        self.run_button = QPushButton("執行批次")
+        self.run_button.setObjectName("PrimaryButton")
 
         header.addWidget(title)
         header.addStretch(1)
-        header.addWidget(add_button)
-        header.addWidget(import_button)
-        header.addWidget(clear_button)
-        header.addWidget(run_button)
+        header.addWidget(self.add_button)
+        header.addWidget(self.import_button)
+        header.addWidget(self.clear_button)
+        header.addWidget(self.run_button)
 
         self.table = QTableWidget(0, 5)
         self.table.setHorizontalHeaderLabels(("標籤", "輸出檔", "來源", "Seed", "狀態"))
@@ -56,12 +56,21 @@ class BatchWorkbench(QWidget):
         layout.addWidget(self.table, 1)
         layout.addWidget(self.summary)
 
-        add_button.clicked.connect(self.add_current_values_dialog)
-        import_button.clicked.connect(self.import_json_dialog)
-        clear_button.clicked.connect(self.view_model.clear)
-        run_button.clicked.connect(self.view_model.run)
+        self.add_button.clicked.connect(self.add_current_values_dialog)
+        self.import_button.clicked.connect(self.import_json_dialog)
+        self.clear_button.clicked.connect(self.view_model.clear)
+        self.run_button.clicked.connect(self.view_model.run)
         self.view_model.items_changed.connect(self.set_items)
         self.view_model.batch_finished.connect(self.set_result)
+        self.run_button.setEnabled(False)
+
+    def set_busy(self, busy: bool) -> None:
+        self.add_button.setEnabled(not busy)
+        self.import_button.setEnabled(not busy)
+        self.clear_button.setEnabled(not busy)
+        self.run_button.setEnabled(not busy and bool(self.view_model.session.batch_items))
+        if busy:
+            self.summary.setText("批次執行中...")
 
     def add_current_values_dialog(self) -> None:
         output_path, _ = QFileDialog.getSaveFileName(
@@ -100,6 +109,7 @@ class BatchWorkbench(QWidget):
 
     def set_items(self, items: tuple) -> None:
         self.table.setRowCount(len(items))
+        self.run_button.setEnabled(bool(items))
         for row, item in enumerate(items):
             source = str(item.values_path) if item.values_path else "目前 values"
             values = (
