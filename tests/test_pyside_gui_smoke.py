@@ -32,6 +32,7 @@ def test_pyside_gui_smoke_loads_template_and_values(tmp_path):
     env["QT_QPA_PLATFORM"] = "offscreen"
     output = tmp_path / "gui-smoke.pdf"
     batch_dir = tmp_path / "batch"
+    screenshot = tmp_path / "gui-smoke.png"
 
     result = subprocess.run(
         [
@@ -49,6 +50,8 @@ def test_pyside_gui_smoke_loads_template_and_values(tmp_path):
             str(batch_dir),
             "--smoke-output",
             str(output),
+            "--smoke-screenshot",
+            str(screenshot),
         ],
         cwd=REPO_ROOT,
         env=env,
@@ -61,9 +64,11 @@ def test_pyside_gui_smoke_loads_template_and_values(tmp_path):
     assert result.returncode == 0, result.stdout + result.stderr
     assert (
         "GUI smoke OK fields=13 values=13 complete=True "
-        "preview=True field_preview=True profile=True batch=2"
+        "preview=True field_preview=True profile=True batch=2 screenshot=True"
     ) in result.stdout
     assert output.exists()
+    assert screenshot.exists()
+    assert screenshot.stat().st_size > 0
     for filename in EXPECTED_BATCH_FILES:
         pdf_path = batch_dir / filename
         assert pdf_path.exists()

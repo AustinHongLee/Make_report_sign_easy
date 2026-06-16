@@ -6,6 +6,7 @@
 - `UI_REDESIGN_BRIEF.md` - product/UX direction for rebuilding the UI.
 - `PYSIDE6_UI_DESIGN.md` - PySide6 product-grade UI/UX + module landing plan (wires the GUI to existing services).
 - `PYSIDE6_IMPLEMENTATION_STATUS.md` - current runnable PySide6 GUI status and smoke command.
+- `OPUS_REVIEW_BRIEF.md` - review gate for Opus with screenshots, verification, and open UX/architecture questions.
 - `PROJECT_STRUCTURE.md` - current repository layout and conventions.
 - `FONT_LICENSES.md` - font sources and license notes.
 - `images/` - README screenshots and visual references.

@@ -40,14 +40,25 @@ handfont-gui `
   --smoke-preview `
   --smoke-profile `
   --smoke-batch-dir "$env:TEMP\mrse-batch-smoke" `
-  --smoke-output "$env:TEMP\mrse-gui-smoke.pdf"
+  --smoke-output "$env:TEMP\mrse-gui-smoke.pdf" `
+  --smoke-screenshot "$env:TEMP\mrse-gui-smoke.png"
 ```
 
 Expected summary:
 
 ```text
-GUI smoke OK fields=13 values=13 complete=True preview=True field_preview=True profile=True batch=2
+GUI smoke OK fields=13 values=13 complete=True preview=True field_preview=True profile=True batch=2 screenshot=True
 ```
+
+## Review Screenshots
+
+- `docs/images/pyside-single-smoke.png`
+- `docs/images/pyside-batch-smoke.png`
+
+The automated smoke command uses Qt's `offscreen` platform so it can run without
+opening a visible window. On this Windows machine, that platform can render CJK
+widget text as square boxes. The checked-in review screenshots were captured
+with `$env:QT_QPA_PLATFORM = "windows"` so zh-TW UI copy is readable.
 
 ## Next
 

@@ -55,4 +55,3 @@ QGraphicsView {{
     border-radius: 8px;
 }}
 """
-

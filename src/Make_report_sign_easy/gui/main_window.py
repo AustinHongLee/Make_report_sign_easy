@@ -160,10 +160,12 @@ class MainWindow(QMainWindow):
         self.template_vm.selected_key_changed.connect(self.canvas.set_selected_key)
         self.template_vm.error.connect(self._show_error)
         self.preview_vm.full_preview_ready.connect(self._show_full_preview)
+        self.preview_vm.full_preview_ready.connect(lambda *_: self.workflow_panel.set_preview_ready())
         self.preview_vm.field_preview_ready.connect(self.canvas.set_field_preview)
         self.preview_vm.error.connect(self._show_error)
         self.profile_vm.error.connect(self._show_error)
         self.batch_vm.error.connect(self._show_error)
+        self.batch_vm.batch_finished.connect(lambda *_: self.workflow_panel.set_export_ready())
         self.field_inspector.field_preview_requested.connect(self.preview_selected_field)
         self.status_bar.preview_requested.connect(self.generate_full_preview)
         self.status_bar.export_requested.connect(self.export_dialog)
@@ -243,6 +245,7 @@ class MainWindow(QMainWindow):
             )
         )
         self.session.last_output_path = result.output_path
+        self.workflow_panel.set_export_ready()
         if notify:
             QMessageBox.information(
                 self,

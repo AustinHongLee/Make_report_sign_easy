@@ -58,3 +58,11 @@ class WorkflowPanel(QFrame):
         color = READY_GREEN if inspection.is_complete else MISSING_YELLOW
         self.values_label.setStyleSheet(f"color: {color}; font-weight: 600;")
         self.preview_label.setStyleSheet(f"color: {INK_BLUE};")
+
+    def set_preview_ready(self) -> None:
+        self.preview_label.setText("4 預覽 - 已產生")
+        self.preview_label.setStyleSheet(f"color: {READY_GREEN}; font-weight: 600;")
+
+    def set_export_ready(self) -> None:
+        self.export_label.setText("5 匯出 - 已完成")
+        self.export_label.setStyleSheet(f"color: {READY_GREEN}; font-weight: 600;")

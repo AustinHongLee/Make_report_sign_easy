@@ -5,9 +5,18 @@ import os
 import sys
 from pathlib import Path
 
+from PySide6.QtGui import QFont, QFontDatabase
 from PySide6.QtWidgets import QApplication
 
 from Make_report_sign_easy.gui.main_window import MainWindow
+
+
+UI_FONT_CANDIDATES = (
+    "Microsoft JhengHei UI",
+    "Microsoft JhengHei",
+    "Noto Sans CJK TC",
+    "Segoe UI",
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -19,7 +28,16 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--smoke-profile", action="store_true", help="Render the profile drawer sample in smoke mode")
     parser.add_argument("--smoke-batch-dir", default=None, help="Optional directory for batch smoke outputs")
     parser.add_argument("--smoke-output", default=None, help="Optional PDF output for smoke mode")
+    parser.add_argument("--smoke-screenshot", default=None, help="Optional PNG screenshot path for smoke mode")
     return parser
+
+
+def apply_ui_font(app: QApplication) -> None:
+    available = set(QFontDatabase.families())
+    for family in UI_FONT_CANDIDATES:
+        if family in available:
+            app.setFont(QFont(family, 10))
+            return
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -28,6 +46,7 @@ def main(argv: list[str] | None = None) -> int:
         os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
     app = QApplication.instance() or QApplication(sys.argv[:1])
+    apply_ui_font(app)
     window = MainWindow()
 
     if args.template:
@@ -54,6 +73,14 @@ def main(argv: list[str] | None = None) -> int:
         window.export_pdf(Path(args.smoke_output), notify=False)
 
     if args.smoke:
+        screenshot_ok = False
+        if args.smoke_screenshot:
+            screenshot_path = Path(args.smoke_screenshot)
+            screenshot_path.parent.mkdir(parents=True, exist_ok=True)
+            window.show()
+            app.processEvents()
+            screenshot_ok = window.grab().save(str(screenshot_path))
+
         fields = len(window.session.template.fields) if window.session.template else 0
         values = len(window.session.values)
         complete = bool(window.session.inspection and window.session.inspection.is_complete)
@@ -65,7 +92,7 @@ def main(argv: list[str] | None = None) -> int:
             "GUI smoke OK "
             f"fields={fields} values={values} complete={complete} "
             f"preview={preview_ok} field_preview={field_preview_ok} profile={profile_ok} "
-            f"batch={batch_count}"
+            f"batch={batch_count} screenshot={screenshot_ok}"
         )
         window.close()
         app.quit()
