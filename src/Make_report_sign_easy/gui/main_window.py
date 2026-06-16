@@ -157,6 +157,7 @@ class MainWindow(QMainWindow):
         self.template_vm.template_loaded.connect(self._set_template_title)
         self.template_vm.inspection_changed.connect(self.workflow_panel.set_inspection)
         self.template_vm.inspection_changed.connect(self.status_bar.set_inspection)
+        self.template_vm.inspection_changed.connect(self.canvas.set_inspection)
         self.template_vm.selected_key_changed.connect(self.canvas.set_selected_key)
         self.template_vm.error.connect(self._show_error)
         self.preview_vm.full_preview_ready.connect(self._show_full_preview)

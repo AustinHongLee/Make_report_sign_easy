@@ -26,6 +26,8 @@ class FieldInspector(QFrame):
         self.value_edit = QLineEdit()
         self.value_edit.setPlaceholderText("輸入此欄位的值")
         self.profile_check = QCheckBox("此欄覆寫 profile")
+        self.profile_check.setEnabled(False)
+        self.profile_check.setToolTip("即將推出")
         self.preview_button = QPushButton("預覽此欄")
         self.preview_button.setEnabled(False)
 

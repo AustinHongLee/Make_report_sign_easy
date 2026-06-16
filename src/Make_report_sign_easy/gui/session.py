@@ -26,6 +26,6 @@ class AppSession:
     field_preview_key: str | None = None
     batch_items: list[BatchFillItem] = field(default_factory=list)
     batch_result: BatchFillResult | None = None
-    clear_annots: bool = False
+    clear_annots: bool = True
     random: bool = False
     seed: int | None = None
