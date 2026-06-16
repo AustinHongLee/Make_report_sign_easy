@@ -167,9 +167,14 @@ class MainWindow(QMainWindow):
         self.profile_vm.error.connect(self._show_error)
         self.batch_vm.error.connect(self._show_error)
         self.batch_vm.batch_finished.connect(lambda *_: self.workflow_panel.set_export_ready())
+        self.batch_vm.items_changed.connect(lambda items: self.status_bar.set_batch_mode(len(items)))
+        self.batch_vm.items_changed.connect(lambda items: self.workflow_panel.set_batch_mode(len(items)))
+        self.batch_vm.batch_finished.connect(self.status_bar.set_batch_result)
+        self.batch_vm.batch_finished.connect(self.workflow_panel.set_batch_result)
         self.field_inspector.field_preview_requested.connect(self.preview_selected_field)
         self.status_bar.preview_requested.connect(self.generate_full_preview)
         self.status_bar.export_requested.connect(self.export_dialog)
+        self.status_bar.batch_requested.connect(self.run_batch)
 
     def choose_template(self) -> None:
         path, _ = QFileDialog.getOpenFileName(
@@ -221,9 +226,15 @@ class MainWindow(QMainWindow):
 
     def show_single_mode(self) -> None:
         self.workspace_stack.setCurrentWidget(self.canvas)
+        self.field_inspector.show()
+        self.status_bar.set_single_mode(self.session.inspection)
+        self.workflow_panel.set_single_mode()
 
     def show_batch_mode(self) -> None:
         self.workspace_stack.setCurrentWidget(self.batch_workbench)
+        self.field_inspector.hide()
+        self.status_bar.set_batch_mode(len(self.session.batch_items))
+        self.workflow_panel.set_batch_mode(len(self.session.batch_items))
 
     def add_batch_current_values(self, output_path: str | Path, *, label: str | None = None, seed: int | None = None):
         return self.batch_vm.add_current_values(output_path, label=label, seed=seed)

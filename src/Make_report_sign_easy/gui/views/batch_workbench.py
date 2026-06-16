@@ -4,6 +4,7 @@ from pathlib import Path
 
 from PySide6.QtWidgets import (
     QFileDialog,
+    QHeaderView,
     QHBoxLayout,
     QLabel,
     QPushButton,
@@ -28,6 +29,7 @@ class BatchWorkbench(QWidget):
         header = QHBoxLayout()
         title = QLabel("批次工作台")
         add_button = QPushButton("加入目前 values")
+        import_button = QPushButton("從多個 JSON 匯入")
         clear_button = QPushButton("清空")
         run_button = QPushButton("執行批次")
         run_button.setObjectName("PrimaryButton")
@@ -35,12 +37,18 @@ class BatchWorkbench(QWidget):
         header.addWidget(title)
         header.addStretch(1)
         header.addWidget(add_button)
+        header.addWidget(import_button)
         header.addWidget(clear_button)
         header.addWidget(run_button)
 
-        self.table = QTableWidget(0, 4)
-        self.table.setHorizontalHeaderLabels(("標籤", "輸出檔", "來源", "狀態"))
-        self.table.horizontalHeader().setStretchLastSection(True)
+        self.table = QTableWidget(0, 5)
+        self.table.setHorizontalHeaderLabels(("標籤", "輸出檔", "來源", "Seed", "狀態"))
+        header_view = self.table.horizontalHeader()
+        header_view.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        header_view.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        header_view.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
+        header_view.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
+        header_view.setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)
         self.summary = QLabel("尚未加入批次工作")
         self.summary.setObjectName("Muted")
 
@@ -49,6 +57,7 @@ class BatchWorkbench(QWidget):
         layout.addWidget(self.summary)
 
         add_button.clicked.connect(self.add_current_values_dialog)
+        import_button.clicked.connect(self.import_json_dialog)
         clear_button.clicked.connect(self.view_model.clear)
         run_button.clicked.connect(self.view_model.run)
         self.view_model.items_changed.connect(self.set_items)
@@ -65,6 +74,30 @@ class BatchWorkbench(QWidget):
             label = Path(output_path).stem
             self.view_model.add_current_values(output_path, label=label)
 
+    def import_json_dialog(self) -> None:
+        values_paths, _ = QFileDialog.getOpenFileNames(
+            self,
+            "選擇 values JSON",
+            "",
+            "JSON files (*.json)",
+        )
+        if not values_paths:
+            return
+
+        output_dir = QFileDialog.getExistingDirectory(self, "選擇批次輸出資料夾")
+        if not output_dir:
+            return
+
+        for index, values_path in enumerate(values_paths, start=1):
+            source = Path(values_path)
+            output_path = Path(output_dir) / f"{source.stem}.pdf"
+            self.view_model.add_values_path(
+                source,
+                output_path,
+                label=source.stem,
+                seed=index,
+            )
+
     def set_items(self, items: tuple) -> None:
         self.table.setRowCount(len(items))
         for row, item in enumerate(items):
@@ -73,6 +106,7 @@ class BatchWorkbench(QWidget):
                 item.label or f"Job {row + 1}",
                 str(item.output_path),
                 source,
+                "" if item.seed is None else str(item.seed),
                 "待執行",
             )
             for column, value in enumerate(values):
@@ -83,5 +117,5 @@ class BatchWorkbench(QWidget):
         for row, fill_result in enumerate(result.results):
             missing = len(fill_result.missing_fields)
             status = "完成" if missing == 0 else f"完成，缺 {missing}"
-            self.table.setItem(row, 3, QTableWidgetItem(status))
+            self.table.setItem(row, 4, QTableWidgetItem(status))
         self.summary.setText(f"已產出 {len(result.output_paths)} 份 PDF")

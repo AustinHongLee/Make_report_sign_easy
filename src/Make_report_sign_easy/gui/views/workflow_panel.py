@@ -66,3 +66,21 @@ class WorkflowPanel(QFrame):
     def set_export_ready(self) -> None:
         self.export_label.setText("5 匯出 - 已完成")
         self.export_label.setStyleSheet(f"color: {READY_GREEN}; font-weight: 600;")
+
+    def set_single_mode(self) -> None:
+        self.preview_label.setText("4 預覽 - 待產生")
+        self.export_label.setText("5 匯出 - 待選擇")
+        self.preview_label.setStyleSheet(f"color: {INK_BLUE};")
+        self.export_label.setStyleSheet("")
+
+    def set_batch_mode(self, item_count: int) -> None:
+        self.preview_label.setText("4 批次 - 待執行")
+        self.export_label.setText(f"5 佇列 - {item_count} 筆")
+        self.preview_label.setStyleSheet(f"color: {INK_BLUE};")
+        self.export_label.setStyleSheet(f"color: {READY_GREEN if item_count else MISSING_YELLOW}; font-weight: 600;")
+
+    def set_batch_result(self, result) -> None:
+        self.preview_label.setText("4 批次 - 已完成")
+        self.export_label.setText(f"5 產出 - {len(result.output_paths)} 份")
+        self.preview_label.setStyleSheet(f"color: {READY_GREEN}; font-weight: 600;")
+        self.export_label.setStyleSheet(f"color: {READY_GREEN}; font-weight: 600;")
