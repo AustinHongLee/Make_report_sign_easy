@@ -19,7 +19,7 @@ class ActionStatusBar(QFrame):
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(16, 10, 16, 10)
-        self.summary = QLabel("尚未載入範本")
+        self.summary = QLabel("尚未載入範本，請先選範本")
         self.preview_button = QPushButton("整頁預覽")
         self.preview_button.setEnabled(False)
         self.export_button = QPushButton("匯出 PDF")

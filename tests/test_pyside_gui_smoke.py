@@ -1,4 +1,6 @@
 import importlib.util
+import hashlib
+import json
 import os
 import subprocess
 import sys
@@ -11,7 +13,7 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[1]
 TEMPLATE = REPO_ROOT / "samples" / "附件六_管線工程施工自主檢查表.pdf"
 VALUES = REPO_ROOT / "samples" / "values_sample.json"
-EXPECTED_BATCH_FILES = ("batch-1.pdf", "batch-2.pdf")
+EXPECTED_BATCH_FILES = ("job-one.pdf", "job-two.pdf")
 
 
 def _page_count(pdf_path: Path) -> int:
@@ -33,6 +35,13 @@ def test_pyside_gui_smoke_loads_template_and_values(tmp_path):
     output = tmp_path / "gui-smoke.pdf"
     batch_dir = tmp_path / "batch"
     screenshot = tmp_path / "gui-smoke.png"
+    values_one = tmp_path / "job-one.json"
+    values_two = tmp_path / "job-two.json"
+    values_data = json.loads(VALUES.read_text(encoding="utf-8"))
+    values_one.write_text(json.dumps(values_data, ensure_ascii=False), encoding="utf-8")
+    values_data["Sign_words"] = "王小明"
+    values_data["Company_words"] = "第二份測試公司"
+    values_two.write_text(json.dumps(values_data, ensure_ascii=False), encoding="utf-8")
 
     result = subprocess.run(
         [
@@ -48,6 +57,9 @@ def test_pyside_gui_smoke_loads_template_and_values(tmp_path):
             "--smoke-profile",
             "--smoke-batch-dir",
             str(batch_dir),
+            "--smoke-batch-values",
+            str(values_one),
+            str(values_two),
             "--smoke-output",
             str(output),
             "--smoke-screenshot",
@@ -73,3 +85,6 @@ def test_pyside_gui_smoke_loads_template_and_values(tmp_path):
         pdf_path = batch_dir / filename
         assert pdf_path.exists()
         assert _page_count(pdf_path) == 1
+    assert hashlib.sha256((batch_dir / "job-one.pdf").read_bytes()).digest() != hashlib.sha256(
+        (batch_dir / "job-two.pdf").read_bytes()
+    ).digest()

@@ -27,6 +27,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--smoke-preview", action="store_true", help="Generate full and field previews in smoke mode")
     parser.add_argument("--smoke-profile", action="store_true", help="Render the profile drawer sample in smoke mode")
     parser.add_argument("--smoke-batch-dir", default=None, help="Optional directory for batch smoke outputs")
+    parser.add_argument("--smoke-batch-values", nargs="*", default=None, help="Optional values JSON files for batch smoke")
     parser.add_argument("--smoke-output", default=None, help="Optional PDF output for smoke mode")
     parser.add_argument("--smoke-screenshot", default=None, help="Optional PNG screenshot path for smoke mode")
     return parser
@@ -66,8 +67,18 @@ def main(argv: list[str] | None = None) -> int:
         batch_dir = Path(args.smoke_batch_dir)
         batch_dir.mkdir(parents=True, exist_ok=True)
         window.show_batch_mode()
-        window.add_batch_current_values(batch_dir / "batch-1.pdf", label="batch-1", seed=0)
-        window.add_batch_current_values(batch_dir / "batch-2.pdf", label="batch-2", seed=0)
+        if args.smoke_batch_values:
+            for index, values_path in enumerate(args.smoke_batch_values, start=1):
+                source = Path(values_path)
+                window.batch_vm.add_values_path(
+                    source,
+                    batch_dir / f"{source.stem}.pdf",
+                    label=source.stem,
+                    seed=index,
+                )
+        else:
+            window.add_batch_current_values(batch_dir / "batch-1.pdf", label="batch-1", seed=0)
+            window.add_batch_current_values(batch_dir / "batch-2.pdf", label="batch-2", seed=0)
         batch_result = window.run_batch(blocking=True)
     if args.smoke_output:
         window.export_pdf(Path(args.smoke_output), blocking=True, notify=False)
